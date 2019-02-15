@@ -1,7 +1,7 @@
 
 from setuptools import setup, find_packages
 
-from netdrop import about
+from ndrop import about
 
 with open('README.rst') as f:
     long_description = f.read()
@@ -13,7 +13,6 @@ with open('requirements.txt') as f:
         if line.startswith('#'):
             continue
         requirements.append(line)
-
 
 setup(
     name=about.name,
