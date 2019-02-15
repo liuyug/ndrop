@@ -16,19 +16,19 @@ with open('requirements.txt') as f:
 
 
 setup(
-    name='ndrop',
+    name=about.name,
     version=about.version,
-    author_email='liuyug@gmail.com',
-    url='https://github.com/liuyug/ndrop.git',
-    license='GPLv3',
-    description='a File Transfer Tool. Support "Dukto"',
+    author_email=about.email,
+    url=about.url,
+    license=about.license,
+    description=about.description,
     long_description=long_description,
     python_requires='>=3',
     platforms=['noarch'],
     packages=find_packages(exclude=['doc']),
     entry_points={
         'console_scripts': [
-            'ndrop = netdrop.main:run',
+            'ndrop = ndrop.main:run',
         ],
     },
     install_requires=requirements,
