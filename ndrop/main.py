@@ -5,6 +5,7 @@ import os.path
 
 import progressbar
 
+from . import about
 from . import dukto
 
 progressbar.streams.wrap_stderr()
@@ -149,19 +150,19 @@ class NetDropClient(NetDrop):
 
 
 def run():
-    description='a File Transfer Tool. Support "Dukto"'
+    description=about.description
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-v', '--verbose', action='store_true', help='output more message ')
 
     parser.add_argument(
         '--cert',
-        help='HTTPs cert file. '
-        'To generate new cert/key: "openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 3650"'
+        help='HTTPs cert file. To generate new cert/key: '
+        '"openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 3650"'
     )
     parser.add_argument('--key', help='HTTPs key file. To generate new cert/key: see above')
-    parser.add_argument('--text', action='store_true', help='FILE as TEXT to be send')
-    parser.add_argument('--listen', metavar='<IP:PORT>', help='listen on to receive FILE')
-    parser.add_argument('--send', metavar='<IP:PORT>', help='send FILE to')
+    parser.add_argument('--text', action='store_true', help='FILENAME as TEXT to be send')
+    parser.add_argument('--listen', metavar='<IP:PORT>', help='listen to receive FILE')
+    parser.add_argument('--send', metavar='<IP:PORT>', help='send FILE')
     parser.add_argument(
         'file', nargs='+', metavar='FILE',
         help='file or directory. On listen mode it is the saved directory. '
