@@ -18,6 +18,12 @@ class Transport(object):
     def send_finish_file(self, path):
         pass
 
+    def send_finish(self):
+        pass
+
+    def request_finish(self):
+        pass
+
     def recv_feed_file(self, path, data, recv_size, file_size, total_recv_size, total_size):
         pass
 

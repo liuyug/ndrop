@@ -154,6 +154,7 @@ class NetDropClient(NetDrop):
         if self._bar:
             dirty = self._bar.value != self._bar.max_value
             self._bar.finish(dirty=dirty)
+            self._bar = None
 
     def send_text(self, text):
         logger.info('Send TEXT...')
