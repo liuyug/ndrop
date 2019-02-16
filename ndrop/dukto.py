@@ -12,7 +12,7 @@ from .transport import Transport
 logger = logging.getLogger(__name__)
 
 
-CHUNK_SIZE = 1024 * 10
+CHUNK_SIZE = 1024 * 32
 DEFAULT_UDP_PORT = 4644
 DEFAULT_TCP_PORT = 4644
 TEXT_TAG = '___DUKTO___TEXT___'
@@ -23,6 +23,23 @@ STATUS = {
     'filesize': 2,
     'data': 3,
 }
+
+
+def set_chunk_size(size=None):
+    if size:
+        CHUNK_SIZE = size
+    else:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sndbuf = s.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
+        logger.debug('set CHUNK_SIZE: %s' % sndbuf)
+        CHUNK_SIZE = sndbuf
+
+
+def get_network_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    s.connect(('<broadcast>', 0))
+    return s.getsockname()[0]
 
 
 class DuktoPacket():
@@ -112,7 +129,13 @@ class DuktoPacket():
                 self._filesize = int.from_bytes(value, byteorder='little', signed=True)
                 self._recv_file_size = 0
                 if self._filesize == -1:
-                    agent.recv_directory('%s%s' % (self._filename, os.sep))
+                    if not self._filename.endswith(os.sep):
+                        self._filename = '%s%s' % (self._filename, os.sep)
+                    agent.recv_feed_file(
+                        self._filename, None,
+                        self._recv_file_size, self._filesize,
+                        self._total_recv_size, self._total_size,
+                    )
                     self._status = STATUS['filename']
                 else:
                     self._status = STATUS['data']
@@ -182,15 +205,10 @@ class DuktoServer(Transport):
                 self._server.socket,
                 keyfile=self._key, certfile=self._cert, server_side=True)
         self._server.agent = self
-
-    def get_network_ip(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        s.connect(('<broadcast>', 0))
-        return s.getsockname()[0]
+        set_chunk_size()
 
     def wait_for_request(self):
-        addr = self.get_network_ip()
+        addr = get_network_ip()
         logger.info('listen on %s:%s' % (addr, self._server.server_address[1]))
         self._server.serve_forever()
 
@@ -209,9 +227,6 @@ class DuktoServer(Transport):
 
     def request_finish(self):
         self._owner.request_finish()
-
-    def recv_directory(self, path):
-        self._owner.recv_directory(path)
 
 
 class DuktoClient(Transport):
@@ -232,6 +247,7 @@ class DuktoClient(Transport):
             port = DEFAULT_TCP_PORT
         self._address = (ip, port)
         self._packet = DuktoPacket()
+        set_chunk_size()
 
     def send_text(self, text):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

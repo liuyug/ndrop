@@ -1,14 +1,17 @@
+
+import io
 import sys
 import argparse
 import logging
 import os.path
 
+from tqdm import tqdm
 import progressbar
 
 from . import about
 from . import dukto
 
-progressbar.streams.wrap_stderr()
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,6 +22,10 @@ class NetDrop(object):
     def init_bar(self, max_value):
         if logger.getEffectiveLevel() == logging.DEBUG:
             return
+        return tqdm(
+            total=max_value,
+            unit='B', unit_scale=True, unit_divisor=1024,
+        )
         widgets = [
             '', progressbar.Percentage(),
             ' ', progressbar.Bar(),
@@ -29,7 +36,7 @@ class NetDrop(object):
 
 
 class NetDropServer(NetDrop):
-    _data = None
+    _file_io = None
     _drop_directory = None
 
     def __init__(self, addr, mode=None, ssl_ck=None):
@@ -59,48 +66,46 @@ class NetDropServer(NetDrop):
 
     def recv_feed_file(
             self, path, data, recv_size, file_size, total_recv_size, total_size):
-        if not self._data:
+        if not self._file_io:
             if self._drop_directory == '-':
-                self._data = sys.stdout.buffer
+                self._file_io = sys.stdout.buffer
             else:
                 name = os.path.join(self._drop_directory, path)
-                self._data = open(name, 'wb')
+                if not data:
+                    if not os.path.exists(name):
+                        os.mkdir(name)
+                else:
+                    self._file_io = open(name, 'wb')
+            if not self._bar:
+                logger.info(path)
                 self._bar = self.init_bar(total_size)
+            if not data:
+                return
 
-        self._data.write(data)
-        self._bar and self._bar.update(total_recv_size)
+        self._file_io.write(data)
+        self._bar and self._bar.update(len(data))
 
     def recv_finish_file(self, path):
         if self._drop_directory == '-':
-            self._data.flush()
+            self._file_io.flush()
         else:
-            self._data.close()
-        self._data = None
-        logger.info(path)
+            self._file_io.close()
+        self._file_io = None
 
     def request_finish(self):
         if self._bar:
-            dirty = self._bar.value != self._bar.max_value
-            self._bar.finish(dirty=dirty)
+            self._bar.close()
             self._bar = None
 
     def recv_feed_text(self, data):
-        if not self._data:
-            self._data = bytearray()
-        self._data += data
+        if not self._file_io:
+            self._file_io = bytearray()
+        self._file_io += data
 
     def recv_finish_text(self):
-        text = self._data.decode('utf-8')
+        text = self._file_io.decode('utf-8')
         logger.info(text)
-        self._data = None
-
-    def recv_directory(self, path):
-        logger.info(path)
-        if self._drop_directory == '-':
-            return
-        name = os.path.join(self._drop_directory, path)
-        if not os.path.exists(name):
-            os.mkdir(name)
+        self._file_io = None
 
 
 class NetDropClient(NetDrop):
@@ -152,8 +157,7 @@ class NetDropClient(NetDrop):
 
     def send_finish(self):
         if self._bar:
-            dirty = self._bar.value != self._bar.max_value
-            self._bar.finish(dirty=dirty)
+            self._bar.close()
             self._bar = None
 
     def send_text(self, text):
