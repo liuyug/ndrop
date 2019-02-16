@@ -80,8 +80,9 @@ class NetDropServer(NetDrop):
 
     def request_finish(self):
         if self._bar:
-            dirty = self._bar.value!=self._bar.max_value
+            dirty = self._bar.value != self._bar.max_value
             self._bar.finish(dirty=dirty)
+            self._bar = None
 
     def recv_feed_text(self, data):
         if not self._data:

@@ -150,9 +150,10 @@ class ServerHander(socketserver.BaseRequestHandler):
                 break
             self._recv_buff.extend(data)
             self._packet.unpack(self.server.agent, self._recv_buff)
+        self.server.agent.request_finish()
 
     def finish(self):
-        self.server.agent.request_finish()
+        pass
 
 
 class DuktoServer(Transport):
