@@ -67,6 +67,7 @@ class NetDropServer(NetDrop):
     def recv_feed_file(
             self, path, data, recv_size, file_size, total_recv_size, total_size):
         if not self._file_io:
+            logger.debug(path)
             if self._drop_directory == '-':
                 self._file_io = sys.stdout.buffer
             else:
@@ -77,7 +78,6 @@ class NetDropServer(NetDrop):
                 else:
                     self._file_io = open(name, 'wb')
             if not self._bar:
-                logger.info(path)
                 self._bar = self.init_bar(total_size)
             if not data:
                 return
@@ -124,7 +124,6 @@ class NetDropClient(NetDrop):
             rel_path = os.path.relpath(abs_path, base_path)
 
             if os.path.isdir(abs_path):
-                rel_path = '%s%s' % (rel_path, os.sep)
                 size = -1
             else:
                 size = os.path.getsize(abs_path)
@@ -136,7 +135,6 @@ class NetDropClient(NetDrop):
                     for name in dirs:
                         sub_abs_path = os.path.join(root, name)
                         rel_path = os.path.relpath(sub_abs_path, base_path)
-                        rel_path = '%s%s' % (rel_path, os.sep)
                         all_files.append((sub_abs_path, rel_path, -1))
 
                     for name in files:
@@ -153,7 +151,7 @@ class NetDropClient(NetDrop):
         self._bar and self._bar.update(total_send_size)
 
     def send_finish_file(self, path):
-        logger.info(path)
+        logger.debug(path)
 
     def send_finish(self):
         if self._bar:

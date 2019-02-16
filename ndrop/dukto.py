@@ -129,8 +129,6 @@ class DuktoPacket():
                 self._filesize = int.from_bytes(value, byteorder='little', signed=True)
                 self._recv_file_size = 0
                 if self._filesize == -1:
-                    if not self._filename.endswith(os.sep):
-                        self._filename = '%s%s' % (self._filename, os.sep)
                     agent.recv_feed_file(
                         self._filename, None,
                         self._recv_file_size, self._filesize,
