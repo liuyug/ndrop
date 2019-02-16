@@ -29,6 +29,3 @@ class Transport(object):
 
     def recv_finish_file(self, path):
         pass
-
-    def recv_directory(self, path):
-        pass
