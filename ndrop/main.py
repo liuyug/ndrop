@@ -17,13 +17,15 @@ class NetDrop(object):
     _transport = None
 
     def init_bar(self, max_value):
+        if logger.getEffectiveLevel() == logging.DEBUG:
+            return
         widgets = [
             '', progressbar.Percentage(),
             ' ', progressbar.Bar(),
             ' ', progressbar.ETA(),
             ' ', progressbar.FileTransferSpeed(),
         ]
-        self._bar = progressbar.ProgressBar(widgets=widgets, max_value=max_value).start()
+        return progressbar.ProgressBar(widgets=widgets, max_value=max_value).start()
 
 
 class NetDropServer(NetDrop):
@@ -37,10 +39,11 @@ class NetDropServer(NetDrop):
             raise ValueError('unknown mode: %s' % mode)
         self._drop_directory = os.path.abspath('./')
 
-    def wait_for_receive(self):
+    def wait_for_request(self):
         try:
-            self._transport.wait_for_receive()
+            self._transport.wait_for_request()
         except KeyboardInterrupt:
+            self._transport.request_finish()
             print('\n-- Quit --')
 
     def saved_to(self, path):
@@ -54,17 +57,18 @@ class NetDropServer(NetDrop):
             return
         self._drop_directory = os.path.abspath(path)
 
-    def recv_feed_file(self, path, data, recv_size, file_size, total_recv_size, total_size):
+    def recv_feed_file(
+            self, path, data, recv_size, file_size, total_recv_size, total_size):
         if not self._data:
             if self._drop_directory == '-':
                 self._data = sys.stdout.buffer
             else:
                 name = os.path.join(self._drop_directory, path)
                 self._data = open(name, 'wb')
-                self.init_bar(total_size)
+                self._bar = self.init_bar(total_size)
 
         self._data.write(data)
-        self._bar.update(total_recv_size)
+        self._bar and self._bar.update(total_recv_size)
 
     def recv_finish_file(self, path):
         if self._drop_directory == '-':
@@ -73,8 +77,11 @@ class NetDropServer(NetDrop):
             self._data.close()
         self._data = None
         logger.info(path)
-        if self._bar.value == self._bar.max_value:
-            self._bar.finish()
+
+    def request_finish(self):
+        if self._bar:
+            dirty = self._bar.value!=self._bar.max_value
+            self._bar.finish(dirty=dirty)
 
     def recv_feed_text(self, data):
         if not self._data:
@@ -133,16 +140,19 @@ class NetDropClient(NetDrop):
                         total_size += size
                         all_files.append((sub_abs_path, rel_path, size))
 
-        self.init_bar(total_size)
+        self._bar = self.init_bar(total_size)
         self._transport.send_files(total_size, all_files)
 
     def send_feed_file(self, path, data, send_size, file_size, total_send_size, total_size):
-        self._bar.update(total_send_size)
+        self._bar and self._bar.update(total_send_size)
 
     def send_finish_file(self, path):
         logger.info(path)
-        if self._bar.value == self._bar.max_value:
-            self._bar.finish()
+
+    def send_finish(self):
+        if self._bar:
+            dirty = self._bar.value != self._bar.max_value
+            self._bar.finish(dirty=dirty)
 
     def send_text(self, text):
         logger.info('Send TEXT...')
@@ -181,7 +191,7 @@ def run():
     if args.listen:
         server = NetDropServer(args.listen, mode='dukto', ssl_ck=(args.cert, args.key))
         server.saved_to(args.file[0])
-        server.wait_for_receive()
+        server.wait_for_request()
         return
     if args.send:
         client = NetDropClient(args.send, mode='dukto', ssl_ck=(args.cert, args.key))

@@ -139,21 +139,20 @@ class DuktoPacket():
 
 class ServerHander(socketserver.BaseRequestHandler):
     def setup(self):
+        self._packet = DuktoPacket()
         self._recv_buff = bytearray()
 
     def handle(self):
-        peer_addr = self.request.getpeername()
-        logger.info('receive from %s:%s' % peer_addr)
+        logger.info('connect from %s:%s' % self.client_address)
         while True:
             data = self.request.recv(CHUNK_SIZE)
             if not data:
-                logger.debug('wait for receiving...')
                 break
             self._recv_buff.extend(data)
-            self.server.packet.unpack(self.server.agent, self._recv_buff)
+            self._packet.unpack(self.server.agent, self._recv_buff)
 
     def finish(self):
-        self._recv_buff.clear()
+        self.server.agent.request_finish()
 
 
 class DuktoServer(Transport):
@@ -181,7 +180,6 @@ class DuktoServer(Transport):
             self._server.socket = ssl.wrap_socket(
                 self._server.socket,
                 keyfile=self._key, certfile=self._cert, server_side=True)
-        self._server.packet = DuktoPacket()
         self._server.agent = self
 
     def get_network_ip(self):
@@ -190,7 +188,7 @@ class DuktoServer(Transport):
         s.connect(('<broadcast>', 0))
         return s.getsockname()[0]
 
-    def wait_for_receive(self):
+    def wait_for_request(self):
         addr = self.get_network_ip()
         logger.info('listen on %s:%s' % (addr, self._server.server_address[1]))
         self._server.serve_forever()
@@ -199,13 +197,17 @@ class DuktoServer(Transport):
         if path == TEXT_TAG:
             self._owner.recv_feed_text(data)
         else:
-            self._owner.recv_feed_file(path, data, recv_size, file_size, total_recv_size, total_size)
+            self._owner.recv_feed_file(
+                path, data, recv_size, file_size, total_recv_size, total_size)
 
     def recv_finish_file(self, path):
         if path == TEXT_TAG:
             self._owner.recv_finish_text()
         else:
             self._owner.recv_finish_file(path)
+
+    def request_finish(self):
+        self._owner.request_finish()
 
     def recv_directory(self, path):
         self._owner.recv_directory(path)
@@ -238,8 +240,14 @@ class DuktoClient(Transport):
                 keyfile=self._key, certfile=self._cert, server_side=False)
         sock.connect(self._address)
         data = self._packet.pack_text(text)
-        sock.sendall(data)
+        try:
+            sock.sendall(data)
+        except KeyboardInterrupt:
+            pass
+        except Exception:
+            pass
         sock.close()
+        self.send_finish()
 
     def send_files(self, total_size, files):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -249,13 +257,22 @@ class DuktoClient(Transport):
                 keyfile=self._key, certfile=self._cert, server_side=False)
         sock.connect(self._address)
         header = self._packet.pack_files_header(len(files), total_size)
-        sock.sendall(header)
-        for chunk in self._packet.pack_files(self, total_size, files):
-            sock.sendall(chunk)
+        try:
+            sock.sendall(header)
+            for chunk in self._packet.pack_files(self, total_size, files):
+                sock.sendall(chunk)
+        except KeyboardInterrupt:
+            pass
+        except Exception:
+            pass
         sock.close()
+        self.send_finish()
 
     def send_feed_file(self, path, data, send_size, file_size, total_send_size, total_size):
         self._owner.send_feed_file(path, data, send_size, file_size, total_send_size, total_size)
 
     def send_finish_file(self, path):
         self._owner.send_finish_file(path)
+
+    def send_finish(self):
+        self._owner.send_finish()
