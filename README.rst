@@ -13,4 +13,8 @@ Install
 
 .. code::
 
+    # from pypi
+    pip3 install ndrop
+
+    # from source code
     python3 setup.py install
