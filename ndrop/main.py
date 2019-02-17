@@ -96,6 +96,12 @@ class NetDropServer(NetDrop):
         self._file_io = None
 
     def request_finish(self):
+        if self._file_io:
+            if self._drop_directory == '-':
+                self._file_io.flush()
+            else:
+                self._file_io.close()
+            self._file_io = None
         if self._bar:
             self._bar.close()
             self._bar = None
@@ -151,7 +157,7 @@ class NetDropClient(NetDrop):
         self._transport.send_files(total_size, all_files)
 
     def send_feed_file(self, path, data, send_size, file_size, total_send_size, total_size):
-        self._bar and self._bar.update(total_send_size)
+        self._bar and self._bar.update(len(data))
 
     def send_finish_file(self, path):
         self._bar and self._bar.write(path, file=sys.stderr)
