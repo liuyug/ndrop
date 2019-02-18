@@ -261,7 +261,7 @@ class DuktoServer(Transport):
         self._udp_server.agent = self
 
         self._tcp_server = socketserver.TCPServer((ip, self._tcp_port), TCPHandler)
-        if False and self._cert and self._key:
+        if self._cert and self._key:
             self._tcp_server.socket = ssl.wrap_socket(
                 self._tcp_server.socket,
                 keyfile=self._key, certfile=self._cert, server_side=True)
