@@ -280,6 +280,7 @@ class DuktoServer(Transport):
             daemon=True,
         ).start()
 
+        logger.info('My Signature: %s' % get_system_signature().decode('utf-8'))
         addr = get_network_ip()
         logger.info('listen on %s:%s' % (addr, self._tcp_server.server_address[1]))
         try:
