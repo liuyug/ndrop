@@ -1,6 +1,6 @@
 
 name = 'ndrop'
-version = '1.0.1'
+version = '1.1.2'
 email = 'liuyug@gmail.com'
 url = 'https://github.com/liuyug/ndrop.git'
 license = 'GPLv2'
