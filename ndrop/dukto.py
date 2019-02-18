@@ -337,13 +337,13 @@ class DuktoServer(Transport):
 
     def add_machine(self, addr, name):
         if addr not in self._machines:
-            logger.info('Online : %s' % name)
+            logger.info('Online : %s - %s' % (addr, name))
             self._machines[addr] = name
 
     def remove_machine(self, addr):
         name = self._machines.get(addr)
         if name:
-            logger.info('Offline: %s' % name)
+            logger.info('Offline: %s - %s' % (addr, name))
             del self._machines[addr]
 
 
