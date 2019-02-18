@@ -51,7 +51,7 @@ class NetDropServer(NetDrop):
             self._transport.wait_for_request()
         except KeyboardInterrupt:
             self._transport.request_finish()
-            print('\n-- Quit --')
+            logger.info('\n-- Quit --')
 
     def saved_to(self, path):
         if path == '-':
