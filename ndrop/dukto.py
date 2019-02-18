@@ -1,10 +1,13 @@
 
+import time
 import logging
 import os.path
-
+import threading
 import socket
 import socketserver
 import ssl
+import getpass
+import platform
 
 from .transport import Transport
 
@@ -42,6 +45,13 @@ def get_network_ip():
     return s.getsockname()[0]
 
 
+def get_system_signature():
+    user = getpass.getuser()
+    uname = platform.uname()
+    signature = '%s at %s (%s)' % (user, uname.node, uname.system)
+    return signature.encode('utf-8')
+
+
 class DuktoPacket():
     _status = STATUS['idle']
     _record = 0
@@ -52,36 +62,30 @@ class DuktoPacket():
     _filesize = 0
     _recv_file_size = 0
 
-    def get_system_signature():
-        signature = '%s at %s (%s)' % ('test_user', 'test_host', 'test_platform')
-        return signature.decode('utf-8')
-
-    def pack_hello(self, dest, port):
+    def pack_hello(self, dest, my_port):
         data = bytearray()
-        if port == DEFAULT_UDP_PORT:
-            if dest == '<broadcast>':
+        if my_port == DEFAULT_UDP_PORT:
+            if dest[0] == '<broadcast>':
                 data.append(0x01)
             else:
                 data.append(0x02)
         else:
-            if dest == '<broadcast>':
+            if dest[0] == '<broadcast>':
                 data.append(0x04)
             else:
                 data.append(0x05)
-            data.extend(port.to_bytes(2, byteorder='little', signed=True))
-        data.extend(self.get_system_signature())
+            data.extend(my_port.to_bytes(2, byteorder='little', signed=True))
+        data.extend(get_system_signature())
         return data
 
-    def pack_goodbye(self, port):
+    def pack_goodbye(self):
         data = bytearray()
         data.append(0x03)
         data.extend(b'Bye Bye')
-        data.extend(port.to_bytes(2, byteorder='little', signed=True))
         return data
 
-    def unpack_udp(self, agent_handler, data):
-        agent = agent_handler.server.agent
-        msg_type = data.pop()
+    def unpack_udp(self, agent, client_address, data):
+        msg_type = data.pop(0)
         if msg_type in [0x01, 0x02, 0x04, 0x05]:
             if msg_type in [0x04, 0x05]:
                 value = data[:2]
@@ -89,13 +93,14 @@ class DuktoPacket():
                 port = int.from_bytes(value, byteorder='little', signed=True)
             else:
                 port = DEFAULT_UDP_PORT
-            if data != self.get_system_signature():
-                # new machine added
+            if data != get_system_signature():  # new machine added
                 if msg_type == 0x01:
-                    agent.say_hello(agent_handler.client_address, DEFAULT_UDP_PORT)
-                agent.add_machine(agent_handler.client_address)
+                    # unicast
+                    agent.say_hello((client_address[0], port))
+                agent.add_machine(
+                    '%s:%s' % (client_address[0], port), data.decode('utf-8'))
         elif msg_type == 0x03:
-            agent.remove_machine(agent_handler.client_address)
+            agent.remove_machine('%s:%s' % client_address)
 
     def pack_text(self, text):
         data = bytearray()
@@ -142,7 +147,7 @@ class DuktoPacket():
                         yield chunk
             agent.send_finish_file(name)
 
-    def unpack(self, agent, data):
+    def unpack_tcp(self, agent, data):
         while len(data) > 0:
             if self._status == STATUS['idle']:
                 value = data[:8]
@@ -199,18 +204,15 @@ class DuktoPacket():
                     data.clear()
 
 
-class UDPHander(socketserver.BaseRequestHandler):
-    def setup(self):
-        self._packet = DuktoPacket()
-
+class UDPHandler(socketserver.BaseRequestHandler):
     def handle(self):
-        data = self.request[0]
-        self._packet.unpack_udp(self, data)
+        data = bytearray(self.request[0])
+        self.server.agent._packet.unpack_udp(
+            self.server.agent, self.client_address, data)
 
 
-class ServerHander(socketserver.BaseRequestHandler):
+class TCPHandler(socketserver.BaseRequestHandler):
     def setup(self):
-        self._packet = DuktoPacket()
         self._recv_buff = bytearray()
 
     def handle(self):
@@ -220,7 +222,8 @@ class ServerHander(socketserver.BaseRequestHandler):
             if not data:
                 break
             self._recv_buff.extend(data)
-            self._packet.unpack(self.server.agent, self._recv_buff)
+            self.server.agent._packet.unpack_tcp(
+                self.server.agent, self._recv_buff)
         self.server.agent.request_finish()
 
     def finish(self):
@@ -231,9 +234,14 @@ class DuktoServer(Transport):
     _cert = None
     _key = None
     _owner = None
-    _server = None
+    _tcp_server = None
+    _udp_server = None
+    _tcp_port = DEFAULT_TCP_PORT
+    _udp_port = DEFAULT_UDP_PORT
     _packet = None
     _data = None
+    _machines = None
+    _loop_hello = True
 
     def __init__(self, owner, addr, ssl_ck=None):
         if ssl_ck:
@@ -242,28 +250,48 @@ class DuktoServer(Transport):
         self._data = bytearray()
         if ':' in addr:
             ip, port = addr.split(':')
-            port = int(port)
+            self._tcp_port = self._udp_port = int(port)
         else:
             ip = addr
-            port = DEFAULT_TCP_PORT
-        udp_port = DEFAULT_UDP_PORT
-        self._udp_server = socketserver.UDPServer(('', udp_port), UDPHander)
-        self._udp_server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+        self._packet = DuktoPacket()
+
+        self._machines = {}
+        self._udp_server = socketserver.UDPServer(('', self._udp_port), UDPHandler)
         self._udp_server.agent = self
 
-        address = (ip, port)
-        self._server = socketserver.TCPServer((ip, port), ServerHander)
-        if self._cert and self._key:
-            self._server.socket = ssl.wrap_socket(
-                self._server.socket,
+        self._tcp_server = socketserver.TCPServer((ip, self._tcp_port), TCPHandler)
+        if False and self._cert and self._key:
+            self._tcp_server.socket = ssl.wrap_socket(
+                self._tcp_server.socket,
                 keyfile=self._key, certfile=self._cert, server_side=True)
-        self._server.agent = self
+        self._tcp_server.agent = self
         set_chunk_size()
 
     def wait_for_request(self):
+        threading.Thread(
+            name='Online',
+            target=self._udp_server.serve_forever,
+            daemon=True,
+        ).start()
+        threading.Thread(
+            name='Hello',
+            target=self.loop_say_hello,
+            daemon=True,
+        ).start()
+
         addr = get_network_ip()
-        logger.info('listen on %s:%s' % (addr, self._server.server_address[1]))
-        self._server.serve_forever()
+        logger.info('listen on %s:%s' % (addr, self._tcp_server.server_address[1]))
+        try:
+            self._tcp_server.serve_forever()
+        except KeyboardInterrupt:
+            raise
+        finally:
+            logger.info('\nwait to quit...')
+            self._loop_hello = False
+            self.say_goodbye()
+            self._tcp_server.shutdown()
+            self._udp_server.shutdown()
 
     def recv_feed_file(self, path, data, recv_size, file_size, total_recv_size, total_size):
         if path == TEXT_TAG:
@@ -281,11 +309,42 @@ class DuktoServer(Transport):
     def request_finish(self):
         self._owner.request_finish()
 
-    def say_hello(self, dest, port):
-        packet = DuktoPacket()
-        data = packet.get_hello(dest, port)
-        self._udp_server.send_to(data, (dest, port))
+    def say_hello(self, dest):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
+        data = self._packet.pack_hello(dest, self._udp_port)
+        sock.sendto(data, dest)
+        sock.close()
+
+    def loop_say_hello(self):
+        while self._loop_hello:
+            self.say_hello(('<broadcast>', DEFAULT_UDP_PORT))
+            time.sleep(10)
+
+    def say_goodbye(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+        data = self._packet.pack_goodbye()
+        sock.sendto(data, ('<broadcast>', DEFAULT_UDP_PORT))
+        for addr in self._machines:
+            ip, port = addr.split(':')
+            port = int(port)
+            if port != DEFAULT_UDP_PORT:
+                sock.sendto(data, (ip, port))
+        sock.close()
+
+    def add_machine(self, addr, name):
+        if addr not in self._machines:
+            logger.info('Online : %s' % name)
+            self._machines[addr] = name
+
+    def remove_machine(self, addr):
+        name = self._machines.get(addr)
+        if name:
+            logger.info('Offline: %s' % name)
+            del self._machines[addr]
 
 
 class DuktoClient(Transport):
