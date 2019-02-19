@@ -97,10 +97,10 @@ class DuktoPacket():
                 if msg_type == 0x01:
                     # unicast
                     agent.say_hello((client_address[0], port))
-                agent.add_machine(
+                agent.add_node(
                     '%s:%s' % (client_address[0], port), data.decode('utf-8'))
         elif msg_type == 0x03:
-            agent.remove_machine('%s:%s' % client_address)
+            agent.remove_node('%s:%s' % client_address)
 
     def pack_text(self, text):
         data = bytearray()
@@ -248,7 +248,7 @@ class DuktoServer(Transport):
     _udp_port = DEFAULT_UDP_PORT
     _packet = None
     _data = None
-    _machines = None
+    _nodes = None
     _loop_hello = True
 
     def __init__(self, owner, addr, ssl_ck=None):
@@ -264,7 +264,7 @@ class DuktoServer(Transport):
 
         self._packet = DuktoPacket()
 
-        self._machines = {}
+        self._nodes = {}
         self._udp_server = socketserver.UDPServer(('', self._udp_port), UDPHandler)
         self._udp_server.agent = self
 
@@ -332,7 +332,7 @@ class DuktoServer(Transport):
     def loop_say_hello(self):
         while self._loop_hello:
             self.say_hello(('<broadcast>', DEFAULT_UDP_PORT))
-            time.sleep(10)
+            time.sleep(30)
 
     def say_goodbye(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -340,23 +340,23 @@ class DuktoServer(Transport):
 
         data = self._packet.pack_goodbye()
         sock.sendto(data, ('<broadcast>', DEFAULT_UDP_PORT))
-        for addr in self._machines:
+        for addr in self._nodes:
             ip, port = addr.split(':')
             port = int(port)
             if port != DEFAULT_UDP_PORT:
                 sock.sendto(data, (ip, port))
         sock.close()
 
-    def add_machine(self, addr, name):
-        if addr not in self._machines:
+    def add_node(self, addr, name):
+        if addr not in self._nodes:
             logger.info('Online : %s - %s' % (addr, name))
-            self._machines[addr] = name
+            self._nodes[addr] = name
 
-    def remove_machine(self, addr):
-        name = self._machines.get(addr)
+    def remove_node(self, addr):
+        name = self._nodes.get(addr)
         if name:
             logger.info('Offline: %s - %s' % (addr, name))
-            del self._machines[addr]
+            del self._nodes[addr]
 
 
 class DuktoClient(Transport):
