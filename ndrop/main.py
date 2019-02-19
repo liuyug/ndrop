@@ -176,7 +176,12 @@ class NetDropClient(NetDrop):
 def run():
     description=about.description
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-v', '--verbose', action='store_true', help='output more message ')
+    parser.add_argument('-v', '--verbose', action='store_true', help='output more message')
+    parser.add_argument(
+        '--version', action='version',
+        version='%%(prog)s version %s - written by %s <%s>' % (
+            about.version, about.author, about.email),
+        help='about ndrop')
 
     parser.add_argument(
         '--cert',
