@@ -108,12 +108,14 @@ class NetDropServer(NetDrop):
 
     def recv_feed_text(self, data):
         if not self._file_io:
-            self._file_io = bytearray()
-        self._file_io += data
+            self._file_io = io.BytesIO()
+        self._file_io.write(data)
 
     def recv_finish_text(self):
-        text = self._file_io.decode('utf-8')
-        logger.info(text)
+        data = self._file_io.getvalue()
+        text = data.decode('utf-8')
+        logger.info('TEXT: %s' % text)
+        self._file_io.close()
         self._file_io = None
 
 

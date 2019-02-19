@@ -104,7 +104,9 @@ class DuktoPacket():
 
     def pack_text(self, text):
         data = bytearray()
-        total_size = size = len(text)
+        text_data = text.encode('utf-8')
+
+        total_size = size = len(text_data)
         record = 1
         data.extend(record.to_bytes(8, byteorder='little', signed=True))
         data.extend(total_size.to_bytes(8, byteorder='little', signed=True))
@@ -113,7 +115,7 @@ class DuktoPacket():
         data.append(0x00)
         data.extend(size.to_bytes(8, byteorder='little', signed=True))
 
-        data.extend(text.encode('utf-8'))
+        data.extend(text_data)
         return data
 
     def pack_files_header(self, count, total_size):
@@ -205,15 +207,18 @@ class DuktoPacket():
 
 
 class UDPHandler(socketserver.BaseRequestHandler):
+    def setup(self):
+        self._packet = DuktoPacket()
+
     def handle(self):
         data = bytearray(self.request[0])
-        self.server.agent._packet.unpack_udp(
-            self.server.agent, self.client_address, data)
+        self._packet.unpack_udp(self.server.agent, self.client_address, data)
 
 
 class TCPHandler(socketserver.BaseRequestHandler):
     def setup(self):
         self._recv_buff = bytearray()
+        self._packet = DuktoPacket()
 
     def handle(self):
         logger.info('connect from %s:%s' % self.client_address)
@@ -222,8 +227,11 @@ class TCPHandler(socketserver.BaseRequestHandler):
             if not data:
                 break
             self._recv_buff.extend(data)
-            self.server.agent._packet.unpack_tcp(
-                self.server.agent, self._recv_buff)
+            try:
+                self._packet.unpack_tcp(self.server.agent, self._recv_buff)
+            except Exception as err:
+                logger.error('%s - [%s]' % (err, self._recv_buff.hex()))
+                break
         self.server.agent.request_finish()
 
     def finish(self):
