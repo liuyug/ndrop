@@ -315,7 +315,10 @@ class DuktoServer(Transport):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
         data = self._packet.pack_hello(dest, self._udp_port)
-        sock.sendto(data, dest)
+        try:
+            sock.sendto(data, dest)
+        except Exception as err:
+            logger.error('send to "%s" error: %s' % (dest, err))
         sock.close()
 
     def loop_say_hello(self):
