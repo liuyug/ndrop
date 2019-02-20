@@ -272,20 +272,28 @@ class DuktoServer(Transport):
                 keyfile=self._key, certfile=self._cert, server_side=True)
         self._tcp_server.agent = self
         set_chunk_size()
+
+        self._ip_addrs = []
+        self._broadcasts = []
         if ip == '0.0.0.0':
-            self._ip_addrs = []
-            self._broadcasts = []
             for ifname in netifaces.interfaces():
                 if_addr = netifaces.ifaddresses(ifname)
                 for addr in if_addr.get(socket.AF_INET, []):
-                    ip = addr.get('addr')
+                    ip_addr = addr.get('addr')
                     broadcast = addr.get('broadcast')
-                    ip and self._ip_addrs.append(ip)
+                    ip_addr and self._ip_addrs.append(ip_addr)
                     broadcast and broadcast not in self._broadcasts \
                         and self._broadcasts.append(broadcast)
         else:
-            self._ip_addrs = [ip]
-            self._broadcasts = ['<broadcast>']
+            for ifname in netifaces.interfaces():
+                if_addr = netifaces.ifaddresses(ifname)
+                for addr in if_addr.get(socket.AF_INET, []):
+                    ip_addr = addr.get('addr')
+                    broadcast = addr.get('broadcast')
+                    if ip_addr == ip:
+                        self._ip_addrs.append(ip_addr)
+                        self._broadcasts.append(broadcast)
+                        break
 
     def wait_for_request(self):
         threading.Thread(
