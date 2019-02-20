@@ -1,10 +1,13 @@
 
+import sys
 import time
 import logging
 import os.path
 import threading
 import socket
 import socketserver
+import struct
+import fcntl
 import ssl
 import getpass
 import platform
@@ -38,12 +41,43 @@ def set_chunk_size(size=None):
         CHUNK_SIZE = sndbuf
 
 
-def get_network_ip():
+def get_if_info():
+    if_info = []
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    s.connect(('<broadcast>', 0))
-    return s.getsockname()[0]
-
+    if sys.platform == 'win32':
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        s.connect(('<broadcast>', 0))
+        ip = s.getsockname()[0]
+        if_info.append({
+            'ifname': 'unknown',
+            'ip_addr': ip,
+        })
+    else:
+        # #define SIOCGIFADDR     0x8915          /* get PA address
+        # #define SIOCGIFBRDADDR  0x8919          /* get broadcast PA address     */
+        # #define SIOCGIFNETMASK  0x891b          /* get network PA mask          */
+        # #define SIOCGIFMTU      0x8921          /* get MTU size                 */
+        # #define SIOCGIFHWADDR   0x8927          /* Get hardware address         */
+        for idx, ifname in socket.if_nameindex():
+            in_buff = struct.pack('256s', ifname.encode('utf-8'))
+            out_buff = fcntl.ioctl(s.fileno(), 0x8915, in_buff)
+            ip_addr = socket.inet_ntoa(out_buff[20:24])
+            out_buff = fcntl.ioctl(s.fileno(), 0x8919, in_buff)
+            broadcast = socket.inet_ntoa(out_buff[20:24])
+            out_buff = fcntl.ioctl(s.fileno(), 0x891b, in_buff)
+            netmask = socket.inet_ntoa(out_buff[20:24])
+            out_buff = fcntl.ioctl(s.fileno(), 0x8927, in_buff)
+            addr = out_buff[18:24].hex()
+            ether_addr = ':'.join([addr[x*2:x+2] for x in range(6)])
+            if_info.append({
+                'ifname': ifname,
+                'ip_addr': ip_addr,
+                'broadcast': broadcast,
+                'netmask': netmask,
+                'ether_addr': ether_addr,
+            })
+    s.close()
+    return if_info
 
 def get_system_signature():
     user = getpass.getuser()
@@ -244,6 +278,8 @@ class DuktoServer(Transport):
     _owner = None
     _tcp_server = None
     _udp_server = None
+    _ip_addrs = None
+    _broadcasts = None
     _tcp_port = DEFAULT_TCP_PORT
     _udp_port = DEFAULT_UDP_PORT
     _packet = None
@@ -265,7 +301,7 @@ class DuktoServer(Transport):
         self._packet = DuktoPacket()
 
         self._nodes = {}
-        self._udp_server = socketserver.UDPServer(('', self._udp_port), UDPHandler)
+        self._udp_server = socketserver.UDPServer(('0.0.0.0', self._udp_port), UDPHandler)
         self._udp_server.agent = self
 
         self._tcp_server = socketserver.TCPServer((ip, self._tcp_port), TCPHandler)
@@ -275,6 +311,18 @@ class DuktoServer(Transport):
                 keyfile=self._key, certfile=self._cert, server_side=True)
         self._tcp_server.agent = self
         set_chunk_size()
+        if ip == '0.0.0.0':
+            self._ip_addrs = []
+            self._broadcasts = []
+            for info in get_if_info():
+                if info['ip_addr'] not in ['0.0.0.0']:
+                    self._ip_addrs.append(info['ip_addr'])
+                    broadcast = info.get('broadcast', '<broadcast>')
+                    if broadcast not in self._broadcasts:
+                        self._broadcasts.append(broadcast)
+        else:
+            self._ip_addrs = [ip]
+            self._broadcasts = ['<broadcast>']
 
     def wait_for_request(self):
         threading.Thread(
@@ -289,8 +337,15 @@ class DuktoServer(Transport):
         ).start()
 
         logger.info('My Signature: %s' % get_system_signature().decode('utf-8'))
-        addr = get_network_ip()
-        logger.info('listen on %s:%s' % (addr, self._tcp_server.server_address[1]))
+        if len(self._ip_addrs) > 1:
+            logger.info('listen on %s:%s - [%s]' % (
+                self._tcp_server.server_address[0], self._tcp_server.server_address[1],
+                ','.join(self._ip_addrs),
+            ))
+        else:
+            logger.info('listen on %s:%s' % (
+                self._tcp_server.server_address[0], self._tcp_server.server_address[1]
+            ))
         try:
             self._tcp_server.serve_forever()
         except KeyboardInterrupt:
@@ -318,11 +373,22 @@ class DuktoServer(Transport):
     def request_finish(self):
         self._owner.request_finish()
 
-    def say_hello(self, dest):
+    def send_broadcast(self, data, port):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        try:
+            for broadcast in self._broadcasts:
+                sock.sendto(data, (broadcast, port))
+        except Exception as err:
+            logger.error('send to "%s" error: %s' % (dest, err))
+        sock.close()
 
+    def say_hello(self, dest):
         data = self._packet.pack_hello(dest, self._udp_port)
+        if dest[0] == '<broadcast>':
+            self.send_broadcast(data, dest[1])
+            return
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             sock.sendto(data, dest)
         except Exception as err:
@@ -335,11 +401,10 @@ class DuktoServer(Transport):
             time.sleep(30)
 
     def say_goodbye(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-
         data = self._packet.pack_goodbye()
-        sock.sendto(data, ('<broadcast>', DEFAULT_UDP_PORT))
+
+        self.send_broadcast(data, DEFAULT_UDP_PORT)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         for addr in self._nodes:
             ip, port = addr.split(':')
             port = int(port)
