@@ -1,16 +1,15 @@
 
-import sys
 import time
 import logging
 import os.path
 import threading
 import socket
 import socketserver
-import struct
-import fcntl
 import ssl
 import getpass
 import platform
+
+import netifaces
 
 from .transport import Transport
 
@@ -40,44 +39,6 @@ def set_chunk_size(size=None):
         logger.debug('set CHUNK_SIZE: %s' % sndbuf)
         CHUNK_SIZE = sndbuf
 
-
-def get_if_info():
-    if_info = []
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    if sys.platform == 'win32':
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        s.connect(('<broadcast>', 0))
-        ip = s.getsockname()[0]
-        if_info.append({
-            'ifname': 'unknown',
-            'ip_addr': ip,
-        })
-    else:
-        # #define SIOCGIFADDR     0x8915          /* get PA address
-        # #define SIOCGIFBRDADDR  0x8919          /* get broadcast PA address     */
-        # #define SIOCGIFNETMASK  0x891b          /* get network PA mask          */
-        # #define SIOCGIFMTU      0x8921          /* get MTU size                 */
-        # #define SIOCGIFHWADDR   0x8927          /* Get hardware address         */
-        for idx, ifname in socket.if_nameindex():
-            in_buff = struct.pack('256s', ifname.encode('utf-8'))
-            out_buff = fcntl.ioctl(s.fileno(), 0x8915, in_buff)
-            ip_addr = socket.inet_ntoa(out_buff[20:24])
-            out_buff = fcntl.ioctl(s.fileno(), 0x8919, in_buff)
-            broadcast = socket.inet_ntoa(out_buff[20:24])
-            out_buff = fcntl.ioctl(s.fileno(), 0x891b, in_buff)
-            netmask = socket.inet_ntoa(out_buff[20:24])
-            out_buff = fcntl.ioctl(s.fileno(), 0x8927, in_buff)
-            addr = out_buff[18:24].hex()
-            ether_addr = ':'.join([addr[x*2:x+2] for x in range(6)])
-            if_info.append({
-                'ifname': ifname,
-                'ip_addr': ip_addr,
-                'broadcast': broadcast,
-                'netmask': netmask,
-                'ether_addr': ether_addr,
-            })
-    s.close()
-    return if_info
 
 def get_system_signature():
     user = getpass.getuser()
@@ -314,12 +275,14 @@ class DuktoServer(Transport):
         if ip == '0.0.0.0':
             self._ip_addrs = []
             self._broadcasts = []
-            for info in get_if_info():
-                if info['ip_addr'] not in ['0.0.0.0']:
-                    self._ip_addrs.append(info['ip_addr'])
-                    broadcast = info.get('broadcast', '<broadcast>')
-                    if broadcast not in self._broadcasts:
-                        self._broadcasts.append(broadcast)
+            for ifname in netifaces.interfaces():
+                if_addr = netifaces.ifaddresses(ifname)
+                for addr in if_addr.get(socket.AF_INET, []):
+                    ip = addr.get('addr')
+                    broadcast = addr.get('broadcast')
+                    ip and self._ip_addrs.append(ip)
+                    broadcast and broadcast not in self._broadcasts \
+                        and self._broadcasts.append(broadcast)
         else:
             self._ip_addrs = [ip]
             self._broadcasts = ['<broadcast>']
