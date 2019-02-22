@@ -57,9 +57,9 @@ class DuktoPacket():
     _filesize = 0
     _recv_file_size = 0
 
-    def pack_hello(self, port, dest):
+    def pack_hello(self, tcp_port, dest):
         data = bytearray()
-        if port == DEFAULT_TCP_PORT:
+        if tcp_port == DEFAULT_TCP_PORT:
             if dest[0] == '<broadcast>':
                 data.append(0x01)
             else:
@@ -69,7 +69,7 @@ class DuktoPacket():
                 data.append(0x04)
             else:
                 data.append(0x05)
-            data.extend(port.to_bytes(2, byteorder='little', signed=True))
+            data.extend(tcp_port.to_bytes(2, byteorder='little', signed=True))
         data.extend(get_system_signature())
         return data
 
@@ -80,21 +80,27 @@ class DuktoPacket():
         return data
 
     def unpack_udp(self, agent, client_address, data):
+        """
+        0x01    <broadcast>, hello
+        0x02    <unicast>, hello
+        0x03    <broadcast>, bye
+        0x04    <broadcast>, hello with port
+        0x05    <unicast>, hello with port
+        """
         msg_type = data.pop(0)
-        if msg_type in [0x01, 0x02, 0x04, 0x05]:
+        if msg_type == 0x03:
+            agent.remove_node(client_address[0])
+        else:
             if msg_type in [0x04, 0x05]:
                 value = data[:2]
                 del data[:2]
-                port = int.from_bytes(value, byteorder='little', signed=True)
+                tcp_port = int.from_bytes(value, byteorder='little', signed=True)
             else:
-                port = DEFAULT_TCP_PORT
+                tcp_port = DEFAULT_TCP_PORT
             if data != get_system_signature():  # new machine added
-                if msg_type in [0x01, 0x04]:    # reply if broadcast
+                if msg_type in [0x01, 0x04]:    # <broadcast>
                     agent.say_hello((client_address[0], DEFAULT_UDP_PORT))
-                agent.add_node(
-                    '%s:%s' % (client_address[0], port), data.decode('utf-8'))
-        elif msg_type == 0x03:
-            agent.remove_node(client_address[0])
+                agent.add_node(client_address[0], tcp_port, data.decode('utf-8'))
 
     def pack_text(self, text):
         data = bytearray()
@@ -246,7 +252,6 @@ class DuktoServer(Transport):
     _ip_addrs = None
     _broadcasts = None
     _tcp_port = DEFAULT_TCP_PORT
-    _udp_port = DEFAULT_UDP_PORT
     _packet = None
     _data = None
     _nodes = None
@@ -266,7 +271,7 @@ class DuktoServer(Transport):
         self._packet = DuktoPacket()
 
         self._nodes = {}
-        self._udp_server = socketserver.UDPServer(('0.0.0.0', self._udp_port), UDPHandler)
+        self._udp_server = socketserver.UDPServer(('0.0.0.0', DEFAULT_UDP_PORT), UDPHandler)
         self._udp_server.agent = self
 
         self._tcp_server = socketserver.TCPServer((ip, self._tcp_port), TCPHandler)
@@ -361,7 +366,7 @@ class DuktoServer(Transport):
     def say_hello(self, dest):
         data = self._packet.pack_hello(self._tcp_port, dest)
         if dest[0] == '<broadcast>':
-            self.send_broadcast(data, dest[1])
+            self.send_broadcast(data, DEFAULT_UDP_PORT)
         else:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             try:
@@ -379,17 +384,19 @@ class DuktoServer(Transport):
         data = self._packet.pack_goodbye()
         self.send_broadcast(data, DEFAULT_UDP_PORT)
 
-    def add_node(self, addr, name):
-        if addr not in self._nodes:
-            logger.info('Online : %s - %s' % (addr, name))
-            self._nodes[addr] = name
+    def add_node(self, ip, port, signature):
+        if ip not in self._nodes:
+            logger.info('Online : %s:%s - %s' % (ip, port, signature))
+            self._nodes[ip] = {
+                'port': port,
+                'signature': signature,
+            }
 
     def remove_node(self, ip):
-        for addr, name in self._nodes.items():
-            if addr.startswith(ip):
-                logger.info('Offline: %s - %s' % (addr, name))
-                del self._nodes[addr]
-                break
+        if ip in self._nodes:
+            logger.info('Offline: %s:%s - %s' % (
+                ip, self._nodes[ip]['port'], self._nodes[ip]['signature']))
+            del self._nodes[ip]
 
 
 class DuktoClient(Transport):
