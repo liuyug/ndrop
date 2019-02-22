@@ -123,16 +123,14 @@ class DuktoPacket():
         data = bytearray()
         total_send_size = 0
         for path, name, size in files:
-            data.clear()
             data.extend(name.encode('utf-8'))
             data.append(0x00)
             data.extend(size.to_bytes(8, byteorder='little', signed=True))
-            yield data
             if size > 0:
                 send_size = 0
                 with open(path, 'rb') as f:
                     while True:
-                        chunk = f.read(CHUNK_SIZE)
+                        chunk = f.read(CHUNK_SIZE - len(data))
                         if not chunk:
                             break
                         send_size += len(chunk)
@@ -141,8 +139,15 @@ class DuktoPacket():
                             name, chunk,
                             send_size, size, total_send_size, total_size,
                         )
-                        yield chunk
+                        data.extend(chunk)
+                        if len(data) > (CHUNK_SIZE - 1024):
+                            yield data
+                            data.clear()
             agent.send_finish_file(name)
+
+        if len(data) > 0:
+            yield data
+            data.clear()
 
     def unpack_tcp(self, agent, data):
         while len(data) > 0:
