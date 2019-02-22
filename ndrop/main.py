@@ -176,7 +176,7 @@ class NetDropClient(NetDrop):
 
 
 def run():
-    description=about.description
+    description = about.description
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-v', '--verbose', action='store_true', help='output more message')
     parser.add_argument(

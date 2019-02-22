@@ -31,6 +31,7 @@ STATUS = {
 
 
 def set_chunk_size(size=None):
+    global CHUNK_SIZE
     if size:
         CHUNK_SIZE = size
     else:
@@ -360,7 +361,7 @@ class DuktoServer(Transport):
             for broadcast in self._broadcasts:
                 sock.sendto(data, (broadcast, port))
         except Exception as err:
-            logger.error('send to "%s" error: %s' % (dest, err))
+            logger.error('send to "%s" error: %s' % (broadcast, err))
         sock.close()
 
     def say_hello(self, dest):
