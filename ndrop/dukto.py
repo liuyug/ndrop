@@ -9,9 +9,7 @@ import ssl
 import getpass
 import platform
 
-import netifaces
-
-from .transport import Transport
+from .transport import Transport, get_broadcast_address
 
 
 logger = logging.getLogger(__name__)
@@ -284,27 +282,7 @@ class DuktoServer(Transport):
         self._tcp_server.agent = self
         set_chunk_size()
 
-        self._ip_addrs = []
-        self._broadcasts = []
-        if ip == '0.0.0.0':
-            for ifname in netifaces.interfaces():
-                if_addr = netifaces.ifaddresses(ifname)
-                for addr in if_addr.get(socket.AF_INET, []):
-                    ip_addr = addr.get('addr')
-                    broadcast = addr.get('broadcast')
-                    ip_addr and self._ip_addrs.append(ip_addr)
-                    broadcast and broadcast not in self._broadcasts \
-                        and self._broadcasts.append(broadcast)
-        else:
-            for ifname in netifaces.interfaces():
-                if_addr = netifaces.ifaddresses(ifname)
-                for addr in if_addr.get(socket.AF_INET, []):
-                    ip_addr = addr.get('addr')
-                    broadcast = addr.get('broadcast')
-                    if ip_addr == ip:
-                        self._ip_addrs.append(ip_addr)
-                        self._broadcasts.append(broadcast)
-                        break
+        self._ip_addrs, self._broadcasts = get_broadcast_address(ip)
 
     def wait_for_request(self):
         threading.Thread(
@@ -387,6 +365,8 @@ class DuktoServer(Transport):
         self.send_broadcast(data, DEFAULT_UDP_PORT)
 
     def add_node(self, ip, port, signature):
+        if ip in self._ip_addrs:
+            return
         if ip not in self._nodes:
             logger.info('Online : %s:%s - %s' % (ip, port, signature))
             self._nodes[ip] = {
