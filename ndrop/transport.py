@@ -1,8 +1,35 @@
 
 import logging
+import socket
+
+import netifaces
 
 
 logger = logging.getLogger(__name__)
+
+
+def get_broadcast_address(ip_addr=None):
+    ip_addrs = []
+    broadcasts = []
+    if not ip_addr or ip_addr == '0.0.0.0':
+        for ifname in netifaces.interfaces():
+            if_addr = netifaces.ifaddresses(ifname)
+            for addr in if_addr.get(socket.AF_INET, []):
+                ip_addr = addr.get('addr')
+                broadcast = addr.get('broadcast')
+                ip_addr and ip_addrs.append(ip_addr)
+                broadcast and broadcast not in broadcasts \
+                    and broadcasts.append(broadcast)
+    else:
+        for ifname in netifaces.interfaces():
+            if_addr = netifaces.ifaddresses(ifname)
+            for addr in if_addr.get(socket.AF_INET, []):
+                if ip_addr == addr.get('addr'):
+                    ip_addrs.append(ip_addr)
+                    broadcast = addr.get('broadcast')
+                    broadcasts.append(broadcast)
+                    break
+    return ip_addrs, broadcasts
 
 
 class Transport(object):

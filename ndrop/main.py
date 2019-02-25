@@ -10,6 +10,7 @@ import progressbar
 
 from . import about
 from . import dukto
+from . import nitroshare
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,8 @@ class NetDropServer(NetDrop):
     def __init__(self, addr, mode=None, ssl_ck=None):
         if not mode or mode == 'dukto':
             self._transport = dukto.DuktoServer(self, addr, ssl_ck=ssl_ck)
+        elif mode == 'nitroshare':
+            self._transport = nitroshare.NitroshareServer(self, addr, ssl_ck=ssl_ck)
         else:
             raise ValueError('unknown mode: %s' % mode)
         self._drop_directory = os.path.abspath('./')
@@ -123,6 +126,8 @@ class NetDropClient(NetDrop):
     def __init__(self, addr, mode=None, ssl_ck=None):
         if not mode or mode == 'dukto':
             self._transport = dukto.DuktoClient(self, addr, ssl_ck=ssl_ck)
+        elif mode == 'nitroshare':
+            self._transport = nitroshare.NitroshareClient(self, addr, ssl_ck=ssl_ck)
         else:
             raise ValueError('unknown mode: %s' % mode)
 
@@ -185,6 +190,8 @@ def run():
             about.version, about.author, about.email),
         help='about ndrop')
 
+    parser.add_argument('--mode', default='dukto',
+                        choices=['dukto', 'nitroshare'], help='dukto, nitroshare')
     parser.add_argument(
         '--cert',
         help='HTTPs cert file. To generate new cert/key: '
@@ -210,12 +217,12 @@ def run():
     app_logger.addHandler(handler)
 
     if args.listen:
-        server = NetDropServer(args.listen, mode='dukto', ssl_ck=(args.cert, args.key))
+        server = NetDropServer(args.listen, mode=args.mode, ssl_ck=(args.cert, args.key))
         server.saved_to(args.file[0])
         server.wait_for_request()
         return
     if args.send:
-        client = NetDropClient(args.send, mode='dukto', ssl_ck=(args.cert, args.key))
+        client = NetDropClient(args.send, mode=args.mode, ssl_ck=(args.cert, args.key))
         if args.text:
             client.send_text(' '.join(args.file))
         else:
