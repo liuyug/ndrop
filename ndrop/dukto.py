@@ -277,9 +277,10 @@ class DuktoServer(Transport):
 
         self._tcp_server = socketserver.TCPServer((ip, self._tcp_port), TCPHandler)
         if self._cert and self._key:
-            self._tcp_server.socket = ssl.wrap_socket(
-                self._tcp_server.socket,
-                keyfile=self._key, certfile=self._cert, server_side=True)
+            self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            self._ssl_context.load_cert_chain(self._cert, keyfile=self._key)
+            self._tcp_server.socket = self._ssl_context.wrap_socket(
+                self._tcp_server.socket, server_side=True)
         self._tcp_server.agent = self
         set_chunk_size()
 
@@ -423,9 +424,10 @@ class DuktoClient(Transport):
     def send_text(self, text):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if self._cert and self._key:
-            sock = ssl.wrap_socket(
-                sock,
-                keyfile=self._key, certfile=self._cert, server_side=False)
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            sock = ssl_context.wrap_socket(sock, server_side=False)
         sock.connect(self._address)
         data = self._packet.pack_text(text)
         try:
@@ -440,9 +442,10 @@ class DuktoClient(Transport):
     def send_files(self, total_size, files):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if self._cert and self._key:
-            sock = ssl.wrap_socket(
-                sock,
-                keyfile=self._key, certfile=self._cert, server_side=False)
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            sock = ssl_context.wrap_socket(sock, server_side=False)
         sock.connect(self._address)
         header = self._packet.pack_files_header(len(files), total_size)
         try:
