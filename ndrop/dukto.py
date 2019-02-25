@@ -180,13 +180,19 @@ class DuktoPacket():
                 del data[:8]
                 self._filesize = int.from_bytes(value, byteorder='little', signed=True)
                 self._recv_file_size = 0
-                if self._filesize == -1:
+                if self._filesize == -1:    # directory
                     agent.recv_feed_file(
                         self._filename, None,
                         self._recv_file_size, self._filesize,
                         self._total_recv_size, self._total_size,
                     )
-                    self._status = STATUS['filename']
+                    self._recv_record += 1
+                    if self._recv_record == self._record and  \
+                            self._total_recv_size == self._total_size:
+                        self._status = STATUS['idle']
+                        data.clear()
+                    else:
+                        self._status = STATUS['filename']
                 else:
                     self._status = STATUS['data']
             elif self._status == STATUS['data']:
@@ -205,7 +211,8 @@ class DuktoPacket():
                     self._status = STATUS['filename']
                     self._recv_record += 1
                     agent.recv_finish_file(self._filename)
-                if self._total_recv_size == self._total_size:
+                if self._recv_record == self._record and  \
+                        self._total_recv_size == self._total_size:
                     self._status = STATUS['idle']
                     data.clear()
 
