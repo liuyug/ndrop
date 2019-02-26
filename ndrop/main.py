@@ -190,8 +190,7 @@ def run():
             about.version, about.author, about.email),
         help='about ndrop')
 
-    parser.add_argument('--mode', default='dukto',
-                        choices=['dukto', 'nitroshare'], help='dukto, nitroshare')
+    parser.add_argument('--mode', choices=['dukto', 'nitroshare'], help='dukto, nitroshare')
     parser.add_argument(
         '--cert',
         help='HTTPs cert file. To generate new cert/key: '

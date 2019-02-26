@@ -318,7 +318,7 @@ class DuktoServer(Transport):
             daemon=True,
         ).start()
 
-        logger.info('My Signature: %s' % get_system_signature().decode('utf-8'))
+        logger.info('My Node: %s' % get_system_signature().decode('utf-8'))
         if len(self._ip_addrs) > 1:
             logger.info('listen on %s:%s - [%s]' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1],
@@ -388,7 +388,7 @@ class DuktoServer(Transport):
 
     def add_node(self, ip, port, signature):
         if ip not in self._nodes:
-            logger.info('Online : %s:%s - %s' % (ip, port, signature))
+            logger.info('Online : [Dukto] %s:%s - %s' % (ip, port, signature))
             self._nodes[ip] = {
                 'port': port,
                 'signature': signature,
@@ -396,7 +396,7 @@ class DuktoServer(Transport):
 
     def remove_node(self, ip):
         if ip in self._nodes:
-            logger.info('Offline: %s:%s - %s' % (
+            logger.info('Offline: [Dukto] %s:%s - %s' % (
                 ip, self._nodes[ip]['port'], self._nodes[ip]['signature']))
             del self._nodes[ip]
 

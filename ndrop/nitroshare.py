@@ -58,24 +58,24 @@ class Packet():
 
     def pack_success(self):
         data = bytearray()
-        ret = 0
-        data.extend(ret.to_bytes(4, byteorder='little', signed=True))
+        data.extend(int(1).to_bytes(4, byteorder='little', signed=True))
         data.append(0x00)
         return data
 
     def pack_error(self, message):
+        buff = message.encode('utf-8')
         data = bytearray()
-        ret = 1
-        data.extend(ret.to_bytes(4, byteorder='little', signed=True))
+        data.extend((len(buff) + 1).to_bytes(4, byteorder='little', signed=True))
         data.append(0x01)
-        data.extend(message.encode('utf-8'))
+        data.extend(buff)
         return data
 
     def pack_files_header(self, name, total_size, count):
+        """transfer header"""
         jdata = {}
         jdata['name'] = name
-        jdata['size'] = total_size
-        jdata['count'] = count
+        jdata['size'] = '%s' % total_size
+        jdata['count'] = '%s' % count
         bdata = json.dumps(jdata).encode('utf-8')
 
         data = bytearray()
@@ -88,13 +88,14 @@ class Packet():
         data = bytearray()
         total_send_size = 0
         for path, name, size in files:
+            # file header
             jdata = {}
             jdata['name'] = name
             if size == -1:
                 jdata['directory'] = True
             else:
                 jdata['directory'] = False
-                jdata['size'] = size
+                jdata['size'] = '%s' % size
             jdata['created'] = ''
             jdata['last_modified'] = ''
             jdata['last_read'] = ''
@@ -103,18 +104,18 @@ class Packet():
             data.extend((len(bdata) + 1).to_bytes(4, byteorder='little', signed=True))
             data.append(0x02)
             data.extend(bdata)
-            yield data
-            data.clear()
 
             if size > 0:
                 send_size = 0
                 with open(path, 'rb') as f:
-                    data.extend((size + 1).to_bytes(4, byteorder='little', signed=True))
-                    data.append(0x03)
                     while True:
-                        chunk = f.read(CHUNK_SIZE - len(data))
+                        packet_size = min(CHUNK_SIZE - len(data), size - send_size)
+                        chunk = f.read(packet_size)
                         if not chunk:
                             break
+                        # binary header, every binary packet is less than CHUNK_SIZE
+                        data.extend((packet_size + 1).to_bytes(4, byteorder='little', signed=True))
+                        data.append(0x03)
                         send_size += len(chunk)
                         total_send_size += len(chunk)
                         agent.send_feed_file(
@@ -140,33 +141,29 @@ class Packet():
                     return
                 del data[:5]
                 if size == 0 and typ == 0x00:
-                    print('success')
-                    return True
+                    return
                 elif size > 0 and typ == 0x01:
                     message = data[:size].decode('utf-8')
                     del data[:size]
-                    print('error', message)
-                    return True
-                elif typ == 0x02:   # json
+                    logger.info('Error: %s' % message)
+                    return
+                elif typ == 0x02:   # json, transfer header
                     jdata = json.loads(data[:size])
                     del data[:size]
-                    print(jdata)
-                    if 'count' not in jdata:    # transport header
+                    if 'count' not in jdata:
                         raise ValueError('Error: %s' % jdata)
                     self._total_size = int(jdata['size'])
                     self._record = int(jdata['count'])
                     self._status = STATUS['header']
-            elif self._status == STATUS['header']:
+            elif self._status == STATUS['header']:  # json, file header
                 size, typ = struct.unpack('<lb', data[:5])
                 size -= 1
                 if size > len(data):
                     return
                 del data[:5]
                 if typ == 0x02:   # json
-                    print(data[:size])
                     jdata = json.loads(data[:size])
                     del data[:size]
-                    print(jdata)
                     if 'directory' not in jdata:  # file header
                         raise ValueError('Error: %s' % jdata)
                     self._filename = jdata['name']
@@ -177,24 +174,25 @@ class Packet():
                             self._recv_file_size, self._filesize,
                             self._total_recv_size, self._total_size,
                         )
-                        self._status = STATUS['header']
                         if self._record == self._recv_record and  \
                                 self._total_recv_size == self._total_size:
                             self._status = STATUS['idle']
                             return True
+                        else:
+                            self._status = STATUS['header']
                     else:
                         self._filesize = int(jdata['size'])
+                        self._recv_file_size = 0
                         self._status = STATUS['data']
                 else:
-                    raise ValueError('Error: %s' % typ)
+                    raise ValueError('Error Type: %s' % typ)
             elif self._status == STATUS['data']:
                 size, typ = struct.unpack('<lb', data[:5])
                 size -= 1
-                if size > len(data):
+                if size > len(data):    # many packets for one file.
                     return
                 del data[:5]
                 if typ == 0x03:   # data
-                    size = min(self._filesize - self._recv_file_size, len(data))
                     self._recv_file_size += size
                     self._total_recv_size += size
                     agent.recv_feed_file(
@@ -237,13 +235,12 @@ class TCPHandler(socketserver.BaseRequestHandler):
             try:
                 ret = self._packet.unpack_tcp(self.server.agent, self._recv_buff)
             except Exception as err:
-                logger.error('%s - [%s]' % (err, self._recv_buff.hex()))
+                logger.error('%s' % err)
                 break
             if ret:
+                data = self._packet.pack_success()
+                self.request.sendall(data)
                 break
-        data = self._packet.pack_success()
-        print('sent', data)
-        self.request.sendall(data)
         self.server.agent.request_finish()
 
     def finish(self):
@@ -372,14 +369,14 @@ class NitroshareServer(Transport):
         if ip in self._ip_addrs:
             return
         if ip not in self._nodes:
-            logger.info('Online : %s:%s - %s (%s)' % (
+            logger.info('Online : [NitroShare] %s:%s - %s (%s)' % (
                 ip, data['port'], data['name'], data['operating_system']))
             self._nodes[ip] = data
 
     def remove_node(self, ip):
         if ip in self._nodes:
             data = self._nodes[ip]
-            logger.info('Offline : %s:%s - %s (%s)' % (
+            logger.info('Offline : [NitroShare] %s:%s - %s (%s)' % (
                 ip, data['port'], data['name'], data['operating_system']))
             del self._nodes[ip]
 
@@ -416,16 +413,14 @@ class NitroshareClient(Transport):
         uname = platform.uname()
         try:
             header = self._packet.pack_files_header(uname.node, total_size, len(files))
-            print(header)
             sock.sendall(header)
 
             for chunk in self._packet.pack_files(self, total_size, files):
-                print(chunk)
                 sock.sendall(chunk)
+            # sender message
             data = bytearray()
             while True:
                 chunk = sock.recv(CHUNK_SIZE)
-                print(chunk)
                 if not chunk:
                     break
                 data.extend(chunk)
