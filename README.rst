@@ -40,9 +40,11 @@ or output to STDOUT or PIPE::
 
     $ ndrop --listen 0.0.0.0 - | mpv -
 
-on Client(ndrop or Dukto_)::
+on Client(ndrop, Dukto_ or NitroShare_)::
 
-    $ ndrop --send 192.168.0.1 /tmp/100M.bin
+    $ ndrop --mode dukto --send 192.168.0.1 /tmp/100M.bin
+    # or
+    $ ndrop --mode nitroshare --send 192.168.0.1 /tmp/100M.bin
     [process bar ... ]
 
 Client to Server with SSL
@@ -61,7 +63,7 @@ on Server::
 
 on Client::
 
-    $ ndrop ~/cert.pem --key ~/key.pem --send 192.168.0.1 /tmp/100M.bin
+    $ ndrop --mode dukto ~/cert.pem --key ~/key.pem --send 192.168.0.1 /tmp/100M.bin
     [process bar ... ]
 
 
