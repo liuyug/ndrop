@@ -48,8 +48,6 @@ class NetDropServer(NetDrop):
             self._transport.append(dukto.DuktoServer(self, addr, ssl_ck=ssl_ck))
         if not mode or mode == 'nitroshare':
             self._transport.append(nitroshare.NitroshareServer(self, addr, ssl_ck=ssl_ck))
-        else:
-            raise ValueError('unknown mode: %s' % mode)
         self._drop_directory = os.path.abspath('./')
 
     def wait_for_request(self):
@@ -61,7 +59,6 @@ class NetDropServer(NetDrop):
                 for transport in self._transport:
                     if transport in r:
                         transport.handle_request()
-            # self._transport.wait_for_request()
         except KeyboardInterrupt:
             for transport in self._transport:
                 transport.request_finish()
@@ -202,16 +199,20 @@ def run():
             about.version, about.author, about.email),
         help='about ndrop')
 
-    parser.add_argument('--mode', choices=['dukto', 'nitroshare'], help='dukto, nitroshare')
+    parser.add_argument('--mode', choices=['dukto', 'nitroshare'],
+                        help='default to run all mode.')
     parser.add_argument(
         '--cert',
         help='HTTPs cert file. To generate new cert/key: '
         '"openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 3650"'
     )
     parser.add_argument('--key', help='HTTPs key file. To generate new cert/key: see above')
-    parser.add_argument('--text', action='store_true', help='FILENAME as TEXT to be send')
-    parser.add_argument('--listen', metavar='<IP:PORT>', help='listen to receive FILE')
-    parser.add_argument('--send', metavar='<IP:PORT>', help='send FILE')
+    parser.add_argument('--text', action='store_true',
+                        help='FILENAME as TEXT to be send. Only for Dukto')
+    parser.add_argument('--listen', metavar='<IP:PORT>',
+                        help='listen to receive FILE. NitroShare ignore port.')
+    parser.add_argument('--send', metavar='<IP:PORT>',
+                        help='send FILE. NitroShare ignore port.')
     parser.add_argument(
         'file', nargs='+', metavar='FILE',
         help='file or directory. On listen mode it is the saved directory. '

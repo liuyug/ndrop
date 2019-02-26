@@ -255,7 +255,6 @@ class NitroshareServer(Transport):
     _udp_server = None
     _ip_addrs = None
     _broadcasts = None
-    _tcp_port = DEFAULT_TCP_PORT
     _packet = None
     _data = None
     _nodes = None
@@ -267,8 +266,8 @@ class NitroshareServer(Transport):
         self._owner = owner
         self._data = bytearray()
         if ':' in addr:
+            # nitroshare don't change port
             ip, port = addr.split(':')
-            self._tcp_port = int(port)
         else:
             ip = addr
 
@@ -286,7 +285,7 @@ class NitroshareServer(Transport):
         self._udp_server = socketserver.UDPServer(('0.0.0.0', DEFAULT_UDP_PORT), UDPHandler)
         self._udp_server.agent = self
 
-        self._tcp_server = socketserver.TCPServer((ip, self._tcp_port), TCPHandler)
+        self._tcp_server = socketserver.TCPServer((ip, DEFAULT_TCP_PORT), TCPHandler)
         if self._cert and self._key:
             self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             self._ssl_context.load_cert_chain(self._cert, keyfile=self._key)
@@ -394,11 +393,9 @@ class NitroshareClient(Transport):
         self._owner = owner
         if ':' in addr:
             ip, port = addr.split(':')
-            port = int(port)
         else:
             ip = addr
-            port = DEFAULT_TCP_PORT
-        self._address = (ip, port)
+        self._address = (ip, DEFAULT_TCP_PORT)
         self._packet = Packet()
         set_chunk_size()
 
@@ -418,7 +415,7 @@ class NitroshareClient(Transport):
 
             for chunk in self._packet.pack_files(self, total_size, files):
                 sock.sendall(chunk)
-            # sender message
+            # receive feedback message
             data = bytearray()
             while True:
                 chunk = sock.recv(CHUNK_SIZE)
