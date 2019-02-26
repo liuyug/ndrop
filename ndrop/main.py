@@ -132,6 +132,8 @@ class NetDropServer(NetDrop):
 
 
 class NetDropClient(NetDrop):
+    _transport = None
+
     def __init__(self, addr, mode=None, ssl_ck=None):
         if not mode or mode == 'dukto':
             self._transport = dukto.DuktoClient(self, addr, ssl_ck=ssl_ck)
@@ -191,32 +193,32 @@ class NetDropClient(NetDrop):
 
 def run():
     description = about.description
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-v', '--verbose', action='store_true', help='output more message')
+    epilog = 'NOTE: Output data to STDOUT if "FILE" is "-". ' \
+        'NitroShare will ignore port. ' \
+        'To generate new cert/key: ' \
+        '"openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 3650"'
+    parser = argparse.ArgumentParser(description=description, epilog=epilog)
+    parser.add_argument('-v', '--verbose', action='store_true', help='output debug message')
     parser.add_argument(
         '--version', action='version',
         version='%%(prog)s version %s - written by %s <%s>' % (
             about.version, about.author, about.email),
         help='about ndrop')
 
-    parser.add_argument('--mode', choices=['dukto', 'nitroshare'],
-                        help='default to run all mode.')
-    parser.add_argument(
-        '--cert',
-        help='HTTPs cert file. To generate new cert/key: '
-        '"openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 3650"'
-    )
-    parser.add_argument('--key', help='HTTPs key file. To generate new cert/key: see above')
+    parser.add_argument('--mode', choices=['dukto', 'nitroshare'], metavar='<mode>',
+                        help='protocol mode: [dukto, nitroshare]')
+    parser.add_argument('--cert', help='cert file.')
+    parser.add_argument('--key', help='key file.')
     parser.add_argument('--text', action='store_true',
-                        help='FILENAME as TEXT to be send. Only for Dukto')
+                        help='"FILE" as TEXT to be sent. Only for Dukto')
     parser.add_argument('--listen', metavar='<IP:PORT>',
-                        help='listen to receive FILE. NitroShare ignore port.')
+                        help='listen to receive FILE. '
+                        'default to listen on all mode.')
     parser.add_argument('--send', metavar='<IP:PORT>',
-                        help='send FILE. NitroShare ignore port.')
+                        help='send FILE. default to use Dukto mode')
     parser.add_argument(
         'file', nargs='+', metavar='FILE',
         help='file or directory. On listen mode it is the saved directory. '
-        'Will output data to STDOUT if "FILE" is "-".'
     )
 
     args = parser.parse_args()
