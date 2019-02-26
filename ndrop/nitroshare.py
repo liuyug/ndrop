@@ -49,12 +49,12 @@ class Packet():
     _filesize = 0
     _recv_file_size = 0
 
-    def pack_hello(self, id_, dest):
-        return json.dumps(id_).encode('utf-8')
+    def pack_hello(self, node, dest):
+        return json.dumps(node).encode('utf-8')
 
     def unpack_udp(self, agent, client_address, data):
-        jdata = json.loads(data)
-        agent.add_node(client_address[0], jdata)
+        node = json.loads(data)
+        agent.add_node(client_address[0], node)
 
     def pack_success(self):
         data = bytearray()
@@ -226,7 +226,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
         self._packet = Packet()
 
     def handle(self):
-        logger.info('connect from %s:%s' % self.client_address)
+        logger.info('[NitroShare] connect from %s:%s' % self.client_address)
         while True:
             data = self.request.recv(CHUNK_SIZE)
             if not data:
@@ -279,8 +279,8 @@ class NitroshareServer(Transport):
         data['name'] = uname.node
         data['operating_system'] = uname.system.lower()
         data['port'] = '40818'
-        data['uses_tls'] = False
-        self._id = data
+        data['uses_tls'] = self._cert and self._key
+        self._node = data
 
         self._nodes = {}
         self._udp_server = socketserver.UDPServer(('0.0.0.0', DEFAULT_UDP_PORT), UDPHandler)
@@ -310,23 +310,24 @@ class NitroshareServer(Transport):
         ).start()
 
         if len(self._ip_addrs) > 1:
-            logger.info('listen on %s:%s - [%s]' % (
+            logger.info('[NitroShare] listen on %s:%s - [%s]' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1],
                 ','.join(self._ip_addrs),
             ))
         else:
-            logger.info('listen on %s:%s' % (
+            logger.info('[NitroShare] listen on %s:%s' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1]
             ))
-        try:
-            self._tcp_server.serve_forever()
-        except KeyboardInterrupt:
-            raise
-        finally:
-            logger.info('\nwait to quit...')
-            self._loop_hello = False
-            self._tcp_server.shutdown()
-            self._udp_server.shutdown()
+
+    def handle_request(self):
+        self._tcp_server.handle_request()
+
+    def quit_request(self):
+        self._loop_hello = False
+        self._udp_server.shutdown()
+
+    def fileno(self):
+        return self._tcp_server.fileno()
 
     def recv_feed_file(self, path, data, recv_size, file_size, total_recv_size, total_size):
         self._owner.recv_feed_file(
@@ -349,7 +350,7 @@ class NitroshareServer(Transport):
         sock.close()
 
     def say_hello(self, dest):
-        data = self._packet.pack_hello(self._id, dest)
+        data = self._packet.pack_hello(self._node, dest)
         if dest[0] == '<broadcast>':
             self.send_broadcast(data, DEFAULT_UDP_PORT)
         else:
@@ -365,19 +366,19 @@ class NitroshareServer(Transport):
             self.say_hello(('<broadcast>', DEFAULT_UDP_PORT))
             time.sleep(30)
 
-    def add_node(self, ip, data):
+    def add_node(self, ip, node):
         if ip in self._ip_addrs:
             return
         if ip not in self._nodes:
             logger.info('Online : [NitroShare] %s:%s - %s (%s)' % (
-                ip, data['port'], data['name'], data['operating_system']))
-            self._nodes[ip] = data
+                ip, node['port'], node['name'], node['operating_system']))
+            self._nodes[ip] = node
 
     def remove_node(self, ip):
         if ip in self._nodes:
-            data = self._nodes[ip]
+            node = self._nodes[ip]
             logger.info('Offline : [NitroShare] %s:%s - %s (%s)' % (
-                ip, data['port'], data['name'], data['operating_system']))
+                ip, node['port'], node['name'], node['operating_system']))
             del self._nodes[ip]
 
 

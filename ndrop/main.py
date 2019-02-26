@@ -4,6 +4,7 @@ import sys
 import argparse
 import logging
 import os.path
+import select
 
 from tqdm import tqdm
 import progressbar
@@ -37,23 +38,34 @@ class NetDrop(object):
 
 
 class NetDropServer(NetDrop):
+    _transport = None
     _file_io = None
     _drop_directory = None
 
     def __init__(self, addr, mode=None, ssl_ck=None):
+        self._transport = []
         if not mode or mode == 'dukto':
-            self._transport = dukto.DuktoServer(self, addr, ssl_ck=ssl_ck)
-        elif mode == 'nitroshare':
-            self._transport = nitroshare.NitroshareServer(self, addr, ssl_ck=ssl_ck)
+            self._transport.append(dukto.DuktoServer(self, addr, ssl_ck=ssl_ck))
+        if not mode or mode == 'nitroshare':
+            self._transport.append(nitroshare.NitroshareServer(self, addr, ssl_ck=ssl_ck))
         else:
             raise ValueError('unknown mode: %s' % mode)
         self._drop_directory = os.path.abspath('./')
 
     def wait_for_request(self):
         try:
-            self._transport.wait_for_request()
+            for transport in self._transport:
+                transport.wait_for_request()
+            while True:
+                r, w, e = select.select(self._transport, [], [], 0.5)
+                for transport in self._transport:
+                    if transport in r:
+                        transport.handle_request()
+            # self._transport.wait_for_request()
         except KeyboardInterrupt:
-            self._transport.request_finish()
+            for transport in self._transport:
+                transport.request_finish()
+                transport.quit_request()
             logger.info('\n-- Quit --')
 
     def saved_to(self, path):

@@ -43,7 +43,7 @@ def get_system_signature():
     user = getpass.getuser()
     uname = platform.uname()
     signature = '%s at %s (%s)' % (user, uname.node, uname.system)
-    return signature.encode('utf-8')
+    return signature
 
 
 class DuktoPacket():
@@ -56,7 +56,7 @@ class DuktoPacket():
     _filesize = 0
     _recv_file_size = 0
 
-    def pack_hello(self, tcp_port, dest):
+    def pack_hello(self, node, tcp_port, dest):
         data = bytearray()
         if tcp_port == DEFAULT_TCP_PORT:
             if dest[0] == '<broadcast>':
@@ -69,7 +69,7 @@ class DuktoPacket():
             else:
                 data.append(0x05)
             data.extend(tcp_port.to_bytes(2, byteorder='little', signed=True))
-        data.extend(get_system_signature())
+        data.extend(node.encode('utf-8'))
         return data
 
     def pack_goodbye(self):
@@ -96,7 +96,7 @@ class DuktoPacket():
                 tcp_port = int.from_bytes(value, byteorder='little', signed=True)
             else:
                 tcp_port = DEFAULT_TCP_PORT
-            if data != get_system_signature():  # new machine added
+            if data != agent._node.encode('utf-8'):  # new machine added
                 if msg_type in [0x01, 0x04]:    # <broadcast>
                     agent.say_hello((client_address[0], DEFAULT_UDP_PORT))
                 agent.add_node(client_address[0], tcp_port, data.decode('utf-8'))
@@ -232,7 +232,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
         self._packet = DuktoPacket()
 
     def handle(self):
-        logger.info('connect from %s:%s' % self.client_address)
+        logger.info('[Dukto] connect from %s:%s' % self.client_address)
         while True:
             data = self.request.recv(CHUNK_SIZE)
             if not data:
@@ -266,6 +266,7 @@ class DuktoServer(Transport):
     def __init__(self, owner, addr, ssl_ck=None):
         if ssl_ck:
             self._cert, self._key = ssl_ck
+        self._node = get_system_signature()
         self._owner = owner
         self._data = bytearray()
         if ':' in addr:
@@ -303,26 +304,27 @@ class DuktoServer(Transport):
             daemon=True,
         ).start()
 
-        logger.info('My Node: %s' % get_system_signature().decode('utf-8'))
+        logger.info('My Node: %s' % self._node)
         if len(self._ip_addrs) > 1:
-            logger.info('listen on %s:%s - [%s]' % (
+            logger.info('[Dukto] listen on %s:%s - [%s]' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1],
                 ','.join(self._ip_addrs),
             ))
         else:
-            logger.info('listen on %s:%s' % (
+            logger.info('[Dukto] listen on %s:%s' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1]
             ))
-        try:
-            self._tcp_server.serve_forever()
-        except KeyboardInterrupt:
-            raise
-        finally:
-            logger.info('\nwait to quit...')
-            self._loop_hello = False
-            self.say_goodbye()
-            self._tcp_server.shutdown()
-            self._udp_server.shutdown()
+
+    def handle_request(self):
+        self._tcp_server.handle_request()
+
+    def quit_request(self):
+        self._loop_hello = False
+        self.say_goodbye()
+        self._udp_server.shutdown()
+
+    def fileno(self):
+        return self._tcp_server.fileno()
 
     def recv_feed_file(self, path, data, recv_size, file_size, total_recv_size, total_size):
         if path == TEXT_TAG:
@@ -351,7 +353,7 @@ class DuktoServer(Transport):
         sock.close()
 
     def say_hello(self, dest):
-        data = self._packet.pack_hello(self._tcp_port, dest)
+        data = self._packet.pack_hello(self._node, self._tcp_port, dest)
         if dest[0] == '<broadcast>':
             self.send_broadcast(data, DEFAULT_UDP_PORT)
         else:
