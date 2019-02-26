@@ -216,7 +216,7 @@ def run():
     parser.add_argument(
         'file', nargs='+', metavar='FILE',
         help='file or directory. On listen mode it is the saved directory. '
-        'Will output data to STDOUT if "file" is "-".'
+        'Will output data to STDOUT if "FILE" is "-".'
     )
 
     args = parser.parse_args()

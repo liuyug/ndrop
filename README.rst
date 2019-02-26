@@ -1,14 +1,14 @@
 =====
 NDrop
 =====
-a File Transfer Tool. compatible "Dukto_"
+a File Transfer Tool. compatible "Dukto_" and "NitroShare_"
 
 Feature
 =======
 +   Just drop. No authentication, no authorize, use in trusted network.
-+   compatible "Dukto_"
-+   only CLI mode, no GUI. Dukto_ provide GUI window.
-+   transfer File, Directory and TEXT
++   compatible "Dukto_" and "NitroShare_"
++   only CLI mode, no GUI. Dukto_ or NitroShare_ all provide GUI window.
++   transfer File, Directory. Dukto_ also send TEXT
 +   output to DISK or STDOUT
 
 Install
@@ -22,15 +22,18 @@ Install
     # from source code
     python3 setup.py install
 
-Using Scenario
+Using Scenarios
 ===============
 Client to Server
 ----------------
 on Server(ndrop or Dukto_)::
 
     $ ndrop --listen 0.0.0.0 /tmp
-    My Signature: user at DESKTOP-client (Linux)
-    listen on 0.0.0.0:4644 - [127.0.0.1,192.168.0.1]
+    My Node: user at DESKTOP-client (Linux)
+    [Dukto] listen on 0.0.0.0:4644 - [127.0.0.1,192.168.0.1]
+    [NitroShare] listen on 0.0.0.0:40818 - [127.0.0.1,192.168.0.1]
+    Online : [Dukto] 192.168.0.10:4644 - User at DESKTOP-LU1OA8H (Windows)
+    Online : [NitroShare] 192.168.0.11:40818 - USER-4VC7CASHSL (windows)
     [process bar ... ]
 
 or output to STDOUT or PIPE::
@@ -49,8 +52,11 @@ Maybe transfer though PUBLIC network, such as Internet. Dukto_ do not support SS
 on Server::
 
     $ ndrop ~/cert.pem --key ~/key.pem --listen 0.0.0.0 /tmp
-    My Signature: user at DESKTOP-client (Linux)
-    listen on 0.0.0.0:4644 - [127.0.0.1,192.168.0.1]
+    My Node: user at DESKTOP-client (Linux)
+    [Dukto] listen on 0.0.0.0:4644 - [127.0.0.1,192.168.0.1]
+    [NitroShare] listen on 0.0.0.0:40818 - [127.0.0.1,192.168.0.1]
+    Online : [Dukto] 192.168.0.10:4644 - User at DESKTOP-LU1OA8H (Windows)
+    Online : [NitroShare] 192.168.0.11:40818 - USER-4VC7CASHSL (windows)
     [process bar ... ]
 
 on Client::
@@ -60,3 +66,4 @@ on Client::
 
 
 .. _Dukto: https://sourceforge.net/projects/dukto/
+.. _NitroShare: https://nitroshare.net/

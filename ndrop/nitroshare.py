@@ -376,7 +376,7 @@ class NitroshareServer(Transport):
     def remove_node(self, ip):
         if ip in self._nodes:
             node = self._nodes[ip]
-            logger.info('Offline : [NitroShare] %s:%s - %s (%s)' % (
+            logger.info('Offline: [NitroShare] %s:%s - %s (%s)' % (
                 ip, node['port'], node['name'], node['operating_system']))
             del self._nodes[ip]
 
