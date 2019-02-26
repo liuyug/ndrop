@@ -135,7 +135,7 @@ class NetDropClient(NetDrop):
     _transport = None
 
     def __init__(self, addr, mode=None, ssl_ck=None):
-        if not mode or mode == 'dukto':
+        if mode == 'dukto':
             self._transport = dukto.DuktoClient(self, addr, ssl_ck=ssl_ck)
         elif mode == 'nitroshare':
             self._transport = nitroshare.NitroshareClient(self, addr, ssl_ck=ssl_ck)
@@ -194,7 +194,6 @@ class NetDropClient(NetDrop):
 def run():
     description = about.description
     epilog = 'NOTE: Output data to STDOUT if "FILE" is "-". ' \
-        'NitroShare will ignore port. ' \
         'To generate new cert/key: ' \
         '"openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 3650"'
     parser = argparse.ArgumentParser(description=description, epilog=epilog)
@@ -203,19 +202,18 @@ def run():
         '--version', action='version',
         version='%%(prog)s version %s - written by %s <%s>' % (
             about.version, about.author, about.email),
-        help='about ndrop')
+        help='about')
 
     parser.add_argument('--mode', choices=['dukto', 'nitroshare'], metavar='<mode>',
                         help='protocol mode: [dukto, nitroshare]')
-    parser.add_argument('--cert', help='cert file.')
-    parser.add_argument('--key', help='key file.')
+    parser.add_argument('--cert', metavar='<cert file>', help='cert file.')
+    parser.add_argument('--key', metavar='<key file>', help='key file.')
     parser.add_argument('--text', action='store_true',
                         help='"FILE" as TEXT to be sent. Only for Dukto')
-    parser.add_argument('--listen', metavar='<IP:PORT>',
+    parser.add_argument('--listen', metavar='<ip[:tcp_port[:udp_port]]>',
                         help='listen to receive FILE. '
-                        'default to listen on all mode.')
-    parser.add_argument('--send', metavar='<IP:PORT>',
-                        help='send FILE. default to use Dukto mode')
+                        '"tcp_port" is file transfer port. "udp_port" is node message port.')
+    parser.add_argument('--send', metavar='<ip[:tcp_port]>', help='send FILE.')
     parser.add_argument(
         'file', nargs='+', metavar='FILE',
         help='file or directory. On listen mode it is the saved directory. '
@@ -231,11 +229,17 @@ def run():
     app_logger.addHandler(handler)
 
     if args.listen:
+        if ':' in args.listen and not args.mode:
+            print('Error: the following arguments are required: <mode>')
+            return
         server = NetDropServer(args.listen, mode=args.mode, ssl_ck=(args.cert, args.key))
         server.saved_to(args.file[0])
         server.wait_for_request()
         return
     if args.send:
+        if not args.mode:
+            print('Error: the following arguments are required: <mode>')
+            return
         client = NetDropClient(args.send, mode=args.mode, ssl_ck=(args.cert, args.key))
         if args.text:
             client.send_text(' '.join(args.file))

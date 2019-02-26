@@ -253,6 +253,8 @@ class NitroshareServer(Transport):
     _owner = None
     _tcp_server = None
     _udp_server = None
+    _tcp_port = DEFAULT_TCP_PORT
+    _udp_port = DEFAULT_UDP_PORT
     _ip_addrs = None
     _broadcasts = None
     _packet = None
@@ -265,11 +267,12 @@ class NitroshareServer(Transport):
             self._cert, self._key = ssl_ck
         self._owner = owner
         self._data = bytearray()
-        if ':' in addr:
-            # nitroshare don't change port
-            ip, port = addr.split(':')
-        else:
-            ip = addr
+        addr = addr.split(':')
+        ip = addr.pop(0)
+        if len(addr) > 0:
+            self._tcp_port = int(addr.pop(0))
+        if len(addr) > 0:
+            self._udp_port = int(addr.pop(0))
 
         self._packet = Packet()
         uname = platform.uname()
@@ -277,15 +280,15 @@ class NitroshareServer(Transport):
         data['uuid'] = '%s' % uuid.uuid1()
         data['name'] = uname.node
         data['operating_system'] = uname.system.lower()
-        data['port'] = '40818'
+        data['port'] = '%s' % self._tcp_port
         data['uses_tls'] = self._cert and self._key
         self._node = data
 
         self._nodes = {}
-        self._udp_server = socketserver.UDPServer(('0.0.0.0', DEFAULT_UDP_PORT), UDPHandler)
+        self._udp_server = socketserver.UDPServer((ip, self._udp_port), UDPHandler)
         self._udp_server.agent = self
 
-        self._tcp_server = socketserver.TCPServer((ip, DEFAULT_TCP_PORT), TCPHandler)
+        self._tcp_server = socketserver.TCPServer((ip, self._tcp_port), TCPHandler)
         if self._cert and self._key:
             self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             self._ssl_context.load_cert_chain(self._cert, keyfile=self._key)
@@ -309,13 +312,15 @@ class NitroshareServer(Transport):
         ).start()
 
         if len(self._ip_addrs) > 1:
-            logger.info('[NitroShare] listen on %s:%s - [%s]' % (
+            logger.info('[NitroShare] listen on %s:%s(tcp):%s(udp) - [%s]' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1],
+                self._udp_server.server_address[1],
                 ','.join(self._ip_addrs),
             ))
         else:
-            logger.info('[NitroShare] listen on %s:%s' % (
-                self._tcp_server.server_address[0], self._tcp_server.server_address[1]
+            logger.info('[NitroShare] listen on %s:%s(tcp):%s(udp)' % (
+                self._tcp_server.server_address[0], self._tcp_server.server_address[1],
+                self._udp_server.server_address[1],
             ))
 
     def handle_request(self):
@@ -351,7 +356,7 @@ class NitroshareServer(Transport):
     def say_hello(self, dest):
         data = self._packet.pack_hello(self._node, dest)
         if dest[0] == '<broadcast>':
-            self.send_broadcast(data, DEFAULT_UDP_PORT)
+            self.send_broadcast(data, dest[1])
         else:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             try:
@@ -362,7 +367,7 @@ class NitroshareServer(Transport):
 
     def loop_say_hello(self):
         while self._loop_hello:
-            self.say_hello(('<broadcast>', DEFAULT_UDP_PORT))
+            self.say_hello(('<broadcast>', self._udp_port))
             time.sleep(30)
 
     def add_node(self, ip, node):
@@ -391,11 +396,13 @@ class NitroshareClient(Transport):
         if ssl_ck:
             self._cert, self._key = ssl_ck
         self._owner = owner
-        if ':' in addr:
-            ip, port = addr.split(':')
+        addr = addr.split(':')
+        ip = addr.pop(0)
+        if len(addr) > 0:
+            tcp_port = int(addr.pop(0))
         else:
-            ip = addr
-        self._address = (ip, DEFAULT_TCP_PORT)
+            tcp_port = DEFAULT_TCP_PORT
+        self._address = (ip, tcp_port)
         self._packet = Packet()
         set_chunk_size()
 

@@ -98,7 +98,7 @@ class DuktoPacket():
                 tcp_port = DEFAULT_TCP_PORT
             if data != agent._node.encode('utf-8'):  # new machine added
                 if msg_type in [0x01, 0x04]:    # <broadcast>
-                    agent.say_hello((client_address[0], DEFAULT_UDP_PORT))
+                    agent.say_hello((client_address[0], agent._udp_port))
                 agent.add_node(client_address[0], tcp_port, data.decode('utf-8'))
 
     def pack_text(self, text):
@@ -258,6 +258,7 @@ class DuktoServer(Transport):
     _ip_addrs = None
     _broadcasts = None
     _tcp_port = DEFAULT_TCP_PORT
+    _udp_port = DEFAULT_UDP_PORT
     _packet = None
     _data = None
     _nodes = None
@@ -269,16 +270,17 @@ class DuktoServer(Transport):
         self._node = get_system_signature()
         self._owner = owner
         self._data = bytearray()
-        if ':' in addr:
-            ip, port = addr.split(':')
-            self._tcp_port = int(port)
-        else:
-            ip = addr
+        addr = addr.split(':')
+        ip = addr.pop(0)
+        if len(addr) > 0:
+            self._tcp_port = int(addr.pop(0))
+        if len(addr) > 0:
+            self._udp_port = int(addr.pop(0))
 
         self._packet = DuktoPacket()
 
         self._nodes = {}
-        self._udp_server = socketserver.UDPServer(('0.0.0.0', DEFAULT_UDP_PORT), UDPHandler)
+        self._udp_server = socketserver.UDPServer((ip, self._udp_port), UDPHandler)
         self._udp_server.agent = self
 
         self._tcp_server = socketserver.TCPServer((ip, self._tcp_port), TCPHandler)
@@ -306,13 +308,15 @@ class DuktoServer(Transport):
 
         logger.info('My Node: %s' % self._node)
         if len(self._ip_addrs) > 1:
-            logger.info('[Dukto] listen on %s:%s - [%s]' % (
+            logger.info('[Dukto] listen on %s:%s(tcp):%s(udp) - [%s]' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1],
+                self._udp_server.server_address[1],
                 ','.join(self._ip_addrs),
             ))
         else:
-            logger.info('[Dukto] listen on %s:%s' % (
-                self._tcp_server.server_address[0], self._tcp_server.server_address[1]
+            logger.info('[Dukto] listen on %s:%s(tcp):%s(udp)' % (
+                self._tcp_server.server_address[0], self._tcp_server.server_address[1],
+                self._udp_server.server_address[1],
             ))
 
     def handle_request(self):
@@ -355,7 +359,7 @@ class DuktoServer(Transport):
     def say_hello(self, dest):
         data = self._packet.pack_hello(self._node, self._tcp_port, dest)
         if dest[0] == '<broadcast>':
-            self.send_broadcast(data, DEFAULT_UDP_PORT)
+            self.send_broadcast(data, dest[1])
         else:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             try:
@@ -366,12 +370,12 @@ class DuktoServer(Transport):
 
     def loop_say_hello(self):
         while self._loop_hello:
-            self.say_hello(('<broadcast>', DEFAULT_UDP_PORT))
+            self.say_hello(('<broadcast>', self._udp_port))
             time.sleep(30)
 
     def say_goodbye(self):
         data = self._packet.pack_goodbye()
-        self.send_broadcast(data, DEFAULT_UDP_PORT)
+        self.send_broadcast(data, self._udp_port)
 
     def add_node(self, ip, port, signature):
         if ip in self._ip_addrs:
@@ -395,18 +399,19 @@ class DuktoClient(Transport):
     _key = None
     _owner = None
     _packet = None
+    _address = None
 
     def __init__(self, owner, addr, ssl_ck=None):
         if ssl_ck:
             self._cert, self._key = ssl_ck
         self._owner = owner
-        if ':' in addr:
-            ip, port = addr.split(':')
-            port = int(port)
+        addr = addr.split(':')
+        ip = addr.pop(0)
+        if len(addr) > 0:
+            tcp_port = int(addr.pop(0))
         else:
-            ip = addr
-            port = DEFAULT_TCP_PORT
-        self._address = (ip, port)
+            tcp_port = DEFAULT_TCP_PORT
+        self._address = (ip, tcp_port)
         self._packet = DuktoPacket()
         set_chunk_size()
 
