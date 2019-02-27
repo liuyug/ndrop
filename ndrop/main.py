@@ -230,16 +230,14 @@ def run():
 
     if args.listen:
         if ':' in args.listen and not args.mode:
-            print('Error: the following arguments are required: <mode>')
-            return
+            parser.error('the following arguments are required: <mode>')
         server = NetDropServer(args.listen, mode=args.mode, ssl_ck=(args.cert, args.key))
         server.saved_to(args.file[0])
         server.wait_for_request()
         return
     if args.send:
         if not args.mode:
-            print('Error: the following arguments are required: <mode>')
-            return
+            parser.error('Error: the following arguments are required: <mode>')
         client = NetDropClient(args.send, mode=args.mode, ssl_ck=(args.cert, args.key))
         if args.text:
             client.send_text(' '.join(args.file))
