@@ -30,8 +30,8 @@ on Server(ndrop or Dukto_)::
 
     $ ndrop --listen 0.0.0.0 /tmp
     My Node: user at DESKTOP-client (Linux)
-    [Dukto] listen on 0.0.0.0:4644 - [127.0.0.1,192.168.0.1]
-    [NitroShare] listen on 0.0.0.0:40818 - [127.0.0.1,192.168.0.1]
+    [Dukto] listen on 0.0.0.0:4644(tcp):4644(udp) - [127.0.0.1,192.168.0.1]
+    [NitroShare] listen on 0.0.0.0:40818(tcp):40816(udp) - [127.0.0.1,192.168.0.1]
     Online : [Dukto] 192.168.0.10:4644 - User at DESKTOP-LU1OA8H (Windows)
     Online : [NitroShare] 192.168.0.11:40818 - USER-4VC7CASHSL (windows)
     [process bar ... ]
@@ -55,8 +55,8 @@ on Server::
 
     $ ndrop ~/cert.pem --key ~/key.pem --listen 0.0.0.0 /tmp
     My Node: user at DESKTOP-client (Linux)
-    [Dukto] listen on 0.0.0.0:4644 - [127.0.0.1,192.168.0.1]
-    [NitroShare] listen on 0.0.0.0:40818 - [127.0.0.1,192.168.0.1]
+    [Dukto] listen on 0.0.0.0:4644(tcp):4644(udp) - [127.0.0.1,192.168.0.1]
+    [NitroShare] listen on 0.0.0.0:40818(tcp):40816(udp) - [127.0.0.1,192.168.0.1]
     Online : [Dukto] 192.168.0.10:4644 - User at DESKTOP-LU1OA8H (Windows)
     Online : [NitroShare] 192.168.0.11:40818 - USER-4VC7CASHSL (windows)
     [process bar ... ]
