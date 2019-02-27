@@ -394,7 +394,7 @@ class NitroshareServer(Transport):
         now = datetime.datetime.now()
         timeout_nodes = []
         for ip, node in self._nodes.items():
-            if (now - datetime.timedelta(seconds=(self._hello_interval + 2))) > node['last_ping']:
+            if (now - datetime.timedelta(seconds=(self._hello_interval + 5))) > node['last_ping']:
                 timeout_nodes.append(ip)
         for ip in timeout_nodes:
             self.remove_node(ip)
