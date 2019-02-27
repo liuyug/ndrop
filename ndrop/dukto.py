@@ -96,7 +96,7 @@ class DuktoPacket():
                 tcp_port = int.from_bytes(value, byteorder='little', signed=True)
             else:
                 tcp_port = DEFAULT_TCP_PORT
-            if data != agent._node.encode('utf-8'):  # new machine added
+            if data != agent._node.encode('utf-8'):  # no me
                 if msg_type in [0x01, 0x04]:    # <broadcast>
                     agent.say_hello((client_address[0], agent._udp_port))
                 agent.add_node(client_address[0], tcp_port, data.decode('utf-8'))
@@ -378,8 +378,6 @@ class DuktoServer(Transport):
         self.send_broadcast(data, self._udp_port)
 
     def add_node(self, ip, port, signature):
-        if ip in self._ip_addrs:
-            return
         if ip not in self._nodes:
             logger.info('Online : [Dukto] %s:%s - %s' % (ip, port, signature))
             self._nodes[ip] = {

@@ -1,4 +1,5 @@
 
+import datetime
 import time
 import logging
 import os.path
@@ -54,7 +55,12 @@ class Packet():
 
     def unpack_udp(self, agent, client_address, data):
         node = json.loads(data)
-        agent.add_node(client_address[0], node)
+        if node['uuid'] != agent._node['uuid']:  # no me
+            if client_address[0] in agent._nodes:
+                agent.update_node(client_address[0], node)
+            else:
+                agent.say_hello((client_address[0], agent._udp_port))
+                agent.add_node(client_address[0], node)
 
     def pack_success(self):
         data = bytearray()
@@ -261,6 +267,7 @@ class NitroshareServer(Transport):
     _data = None
     _nodes = None
     _loop_hello = True
+    _hello_interval = 10
 
     def __init__(self, owner, addr, ssl_ck=None):
         if ssl_ck:
@@ -281,7 +288,7 @@ class NitroshareServer(Transport):
         data['name'] = uname.node
         data['operating_system'] = uname.system.lower()
         data['port'] = '%s' % self._tcp_port
-        data['uses_tls'] = self._cert and self._key
+        data['uses_tls'] = bool(self._cert) and bool(self._key)
         self._node = data
 
         self._nodes = {}
@@ -368,15 +375,29 @@ class NitroshareServer(Transport):
     def loop_say_hello(self):
         while self._loop_hello:
             self.say_hello(('<broadcast>', self._udp_port))
-            time.sleep(30)
+            self.check_node()
+            time.sleep(self._hello_interval)
 
     def add_node(self, ip, node):
-        if ip in self._ip_addrs:
-            return
         if ip not in self._nodes:
             logger.info('Online : [NitroShare] %s:%s - %s (%s)' % (
                 ip, node['port'], node['name'], node['operating_system']))
             self._nodes[ip] = node
+            self._nodes[ip]['last_ping'] = datetime.datetime.now()
+
+    def update_node(self, ip, node):
+        now = datetime.datetime.now()
+        self._nodes[ip] = node
+        self._nodes[ip]['last_ping'] = now
+
+    def check_node(self):
+        now = datetime.datetime.now()
+        timeout_nodes = []
+        for ip, node in self._nodes.items():
+            if (now - datetime.timedelta(seconds=(self._hello_interval + 2))) > node['last_ping']:
+                timeout_nodes.append(ip)
+        for ip in timeout_nodes:
+            self.remove_node(ip)
 
     def remove_node(self, ip):
         if ip in self._nodes:
