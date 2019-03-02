@@ -109,7 +109,7 @@ class NetDropServer(NetDrop):
                 self._file_io.close()
                 self._file_io = None
                 digest = self._md5.hexdigest()
-                self._bar.write('%s - MD5:%s' % (path, digest), file=sys.stderr)
+                self._bar.write('%s  %s' % (digest, path), file=sys.stderr)
                 self._md5 = None
             else:   # directory
                 if not path.endswith(os.sep):
@@ -191,7 +191,7 @@ class NetDropClient(NetDrop):
         if self._md5:  # file
             digest = self._md5.hexdigest()
             self._md5 = None
-            self._bar.write('%s - MD5:%s' % (path, digest), file=sys.stderr)
+            self._bar.write('%s  %s' % (digest, path), file=sys.stderr)
         else:  # directory
             if not path.endswith(os.sep):
                 path += os.sep
