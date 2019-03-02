@@ -54,7 +54,7 @@ class Packet():
         return json.dumps(node).encode('utf-8')
 
     def unpack_udp(self, agent, client_address, data):
-        node = json.loads(data)
+        node = json.loads(data.decode('utf-8'))
         if node['uuid'] != agent._node['uuid']:  # no me
             if client_address[0] in agent._nodes:
                 agent.update_node(client_address[0], node)
