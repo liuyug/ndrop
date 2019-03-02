@@ -130,8 +130,8 @@ class DuktoPacket():
             data.extend(name.encode('utf-8'))
             data.append(0x00)
             data.extend(size.to_bytes(8, byteorder='little', signed=True))
+            send_size = 0
             if size > 0:
-                send_size = 0
                 with open(path, 'rb') as f:
                     while True:
                         chunk = f.read(CHUNK_SIZE - len(data))
@@ -147,6 +147,10 @@ class DuktoPacket():
                         if len(data) > (CHUNK_SIZE - 1024):
                             yield data
                             data.clear()
+            else:
+                agent.send_feed_file(
+                    name, None,
+                    send_size, 0, total_send_size, total_size)
             agent.send_finish_file(name)
 
         if len(data) > 0:
@@ -186,6 +190,7 @@ class DuktoPacket():
                         self._recv_file_size, self._filesize,
                         self._total_recv_size, self._total_size,
                     )
+                    agent.recv_finish_file(self._filename)
                     self._recv_record += 1
                     if self._recv_record == self._record and  \
                             self._total_recv_size == self._total_size:

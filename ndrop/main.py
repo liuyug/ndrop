@@ -5,6 +5,7 @@ import argparse
 import logging
 import os.path
 import select
+import hashlib
 
 from tqdm import tqdm
 import progressbar
@@ -39,7 +40,9 @@ class NetDrop(object):
 
 class NetDropServer(NetDrop):
     _transport = None
+    _md5 = None
     _file_io = None
+    _bar = None
     _drop_directory = None
 
     def __init__(self, addr, mode=None, ssl_ck=None):
@@ -78,43 +81,43 @@ class NetDropServer(NetDrop):
 
     def recv_feed_file(
             self, path, data, recv_size, file_size, total_recv_size, total_size):
-        if not self._file_io:
+        if self._bar is None:   # create process bar for every transfer
+            self._bar = self.init_bar(total_size)
+        if not self._file_io:  # new file, directory
             if self._drop_directory == '-':
                 self._file_io = sys.stdout.buffer
             else:
                 name = os.path.join(self._drop_directory, path)
-                if not data:
+                if not data:    # directory
                     if not os.path.exists(name):
                         os.mkdir(name)
-                    if not path.endswith(os.sep):
-                        path += os.sep
                 else:
                     self._file_io = open(name, 'wb')
-            if not self._bar:
-                self._bar = self.init_bar(total_size)
-            logger.debug(path)
-            self._bar and self._bar.write(path, file=sys.stderr)
             if not data:
                 return
+            self._md5 = hashlib.md5()  # create md5 for file
 
         self._file_io.write(data)
-        self._bar and self._bar.update(len(data))
+        self._bar.update(len(data))
+        self._md5.update(data)
 
     def recv_finish_file(self, path):
         if self._drop_directory == '-':
             self._file_io.flush()
         else:
-            self._file_io.close()
-        self._file_io = None
+            if self._file_io:
+                self._file_io.close()
+                self._file_io = None
+                digest = self._md5.hexdigest()
+                self._bar.write('%s - MD5:%s' % (path, digest), file=sys.stderr)
+                self._md5 = None
+            else:   # directory
+                if not path.endswith(os.sep):
+                    path += os.sep
+                self._bar.write('%s' % (path), file=sys.stderr)
 
     def request_finish(self):
-        if self._file_io:
-            if self._drop_directory == '-':
-                self._file_io.flush()
-            else:
-                self._file_io.close()
-            self._file_io = None
-        if self._bar:
+        if self._bar is not None:
             self._bar.close()
             self._bar = None
 
@@ -133,6 +136,8 @@ class NetDropServer(NetDrop):
 
 class NetDropClient(NetDrop):
     _transport = None
+    _bar = None
+    _md5 = None
 
     def __init__(self, addr, mode=None, ssl_ck=None):
         if mode == 'dukto':
@@ -171,18 +176,29 @@ class NetDropClient(NetDrop):
                         total_size += size
                         all_files.append((sub_abs_path, rel_path, size))
 
+        # always create process bar
         self._bar = self.init_bar(total_size)
         self._transport.send_files(total_size, all_files)
 
     def send_feed_file(self, path, data, send_size, file_size, total_send_size, total_size):
-        self._bar and self._bar.update(len(data))
+        if not self._md5 and data:  # one md5 every file
+            self._md5 = hashlib.md5()
+        if data:
+            self._bar.update(len(data))
+            self._md5.update(data)
 
     def send_finish_file(self, path):
-        self._bar and self._bar.write(path, file=sys.stderr)
-        logger.debug(path)
+        if self._md5:  # file
+            digest = self._md5.hexdigest()
+            self._md5 = None
+            self._bar.write('%s - MD5:%s' % (path, digest), file=sys.stderr)
+        else:  # directory
+            if not path.endswith(os.sep):
+                path += os.sep
+            self._bar.write('%s' % (path), file=sys.stderr)
 
     def send_finish(self):
-        if self._bar:
+        if self._bar is not None:
             self._bar.close()
             self._bar = None
 

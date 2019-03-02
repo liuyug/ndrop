@@ -110,9 +110,9 @@ class Packet():
             data.extend((len(bdata) + 1).to_bytes(4, byteorder='little', signed=True))
             data.append(0x02)
             data.extend(bdata)
+            send_size = 0
 
             if size > 0:
-                send_size = 0
                 with open(path, 'rb') as f:
                     while True:
                         packet_size = min(CHUNK_SIZE - len(data), size - send_size)
@@ -132,6 +132,11 @@ class Packet():
                         if len(data) > (CHUNK_SIZE - 1024):
                             yield data
                             data.clear()
+            else:
+                agent.send_feed_file(
+                    name, None,
+                    send_size, 0, total_send_size, total_size,
+                )
             agent.send_finish_file(name)
 
         if len(data) > 0:
@@ -180,6 +185,7 @@ class Packet():
                             self._recv_file_size, self._filesize,
                             self._total_recv_size, self._total_size,
                         )
+                        agent.recv_finish_file(self._filename)
                         if self._record == self._recv_record and  \
                                 self._total_recv_size == self._total_size:
                             self._status = STATUS['idle']
