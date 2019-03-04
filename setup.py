@@ -22,12 +22,12 @@ setup(
     license=about.license,
     description=about.description,
     long_description=long_description,
-    python_requires='>=3',
+    python_requires='>=3.5',
     platforms=['noarch'],
     packages=find_packages(exclude=['doc']),
     entry_points={
         'console_scripts': [
-            'ndrop = ndrop.main:run',
+            '%s = ndrop.__main__:run' % about.name,
         ],
     },
     install_requires=requirements,
