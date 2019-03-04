@@ -131,7 +131,15 @@ class DuktoPacket():
             data.append(0x00)
             data.extend(size.to_bytes(8, byteorder='little', signed=True))
             send_size = 0
-            if size > 0:
+            if size < 0:  # directory
+                agent.send_feed_file(
+                    name, None,
+                    send_size, -1, total_send_size, total_size)
+            elif size == 0:  # file, size equal 0
+                agent.send_feed_file(
+                    name, b'',
+                    send_size, 0, total_send_size, total_size)
+            else:
                 with open(path, 'rb') as f:
                     while True:
                         chunk = f.read(CHUNK_SIZE - len(data))
@@ -147,10 +155,6 @@ class DuktoPacket():
                         if len(data) > (CHUNK_SIZE - 1024):
                             yield data
                             data.clear()
-            else:
-                agent.send_feed_file(
-                    name, None,
-                    send_size, 0, total_send_size, total_size)
             agent.send_finish_file(name)
 
         if len(data) > 0:
@@ -184,9 +188,16 @@ class DuktoPacket():
                 del data[:8]
                 self._filesize = int.from_bytes(value, byteorder='little', signed=True)
                 self._recv_file_size = 0
-                if self._filesize == -1:    # directory
+
+                if self._filesize > 0:
+                    self._status = STATUS['data']
+                else:
+                    if self._filesize < 0:    # directory
+                        chunk = None
+                    else:
+                        chunk = b''
                     agent.recv_feed_file(
-                        self._filename, None,
+                        self._filename, chunk,
                         self._recv_file_size, self._filesize,
                         self._total_recv_size, self._total_size,
                     )
@@ -198,8 +209,6 @@ class DuktoPacket():
                         data.clear()
                     else:
                         self._status = STATUS['filename']
-                else:
-                    self._status = STATUS['data']
             elif self._status == STATUS['data']:
                 size = min(self._filesize - self._recv_file_size, len(data))
                 self._recv_file_size += size

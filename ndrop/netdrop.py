@@ -87,12 +87,12 @@ class NetDropServer(NetDrop):
                 self._file_io = sys.stdout.buffer
             else:
                 name = os.path.join(self._drop_directory, path)
-                if not data:    # directory
+                if file_size < 0:    # directory
                     if not os.path.exists(name):
                         os.mkdir(name)
                 else:
                     self._file_io = open(name, 'wb')
-            if not data:
+            if file_size < 0:
                 return
             self._md5 = hashlib.md5()  # create md5 for file
 
@@ -180,9 +180,9 @@ class NetDropClient(NetDrop):
         self._transport.send_files(total_size, all_files)
 
     def send_feed_file(self, path, data, send_size, file_size, total_send_size, total_size):
-        if not self._md5 and data:  # one md5 every file
-            self._md5 = hashlib.md5()
-        if data:
+        if file_size > -1:
+            if not self._md5:  # one md5 every file
+                self._md5 = hashlib.md5()
             self._bar.update(len(data))
             self._md5.update(data)
 

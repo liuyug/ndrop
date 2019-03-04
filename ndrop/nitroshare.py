@@ -112,7 +112,17 @@ class Packet():
             data.extend(bdata)
             send_size = 0
 
-            if size > 0:
+            if size < 0:    # directory
+                agent.send_feed_file(
+                    name, None,
+                    send_size, -1, total_send_size, total_size,
+                )
+            elif size == 0:
+                agent.send_feed_file(
+                    name, b'',
+                    send_size, 0, total_send_size, total_size,
+                )
+            else:
                 with open(path, 'rb') as f:
                     while True:
                         packet_size = min(CHUNK_SIZE - len(data), size - send_size)
@@ -132,11 +142,6 @@ class Packet():
                         if len(data) > (CHUNK_SIZE - 1024):
                             yield data
                             data.clear()
-            else:
-                agent.send_feed_file(
-                    name, None,
-                    send_size, 0, total_send_size, total_size,
-                )
             agent.send_finish_file(name)
 
         if len(data) > 0:
@@ -177,11 +182,23 @@ class Packet():
                     del data[:size]
                     if 'directory' not in jdata:  # file header
                         raise ValueError('Error: %s' % jdata)
+                    self._recv_file_size = 0
                     self._filename = jdata['name']
-                    if jdata['directory']:
+                    if jdata['directory']:  # directory
+                        self._filesize = -1
+                    else:
+                        self._filesize = int(jdata['size'])
+
+                    if self._filesize > 0:
+                        self._status = STATUS['data']
+                    else:
+                        if self._filesize < 0:
+                            chunk = None
+                        else:
+                            chunk = b''
                         self._recv_record += 1
                         agent.recv_feed_file(
-                            self._filename, None,
+                            self._filename, chunk,
                             self._recv_file_size, self._filesize,
                             self._total_recv_size, self._total_size,
                         )
@@ -192,10 +209,6 @@ class Packet():
                             return True
                         else:
                             self._status = STATUS['header']
-                    else:
-                        self._filesize = int(jdata['size'])
-                        self._recv_file_size = 0
-                        self._status = STATUS['data']
                 else:
                     raise ValueError('Error Type: %s' % typ)
             elif self._status == STATUS['data']:
