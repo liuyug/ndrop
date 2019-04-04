@@ -8,7 +8,6 @@ import select
 import hashlib
 
 from tqdm import tqdm
-import progressbar
 
 from . import dukto
 from . import nitroshare
@@ -28,13 +27,6 @@ class NetDrop(object):
             total=max_value,
             unit='B', unit_scale=True, unit_divisor=1024,
         )
-        widgets = [
-            '', progressbar.Percentage(),
-            ' ', progressbar.Bar(),
-            ' ', progressbar.ETA(),
-            ' ', progressbar.FileTransferSpeed(),
-        ]
-        return progressbar.ProgressBar(widgets=widgets, max_value=max_value).start()
 
 
 class NetDropServer(NetDrop):
