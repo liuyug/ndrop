@@ -34,7 +34,7 @@ def run():
                         '"tcp_port" is file transfer port. "udp_port" is node message port.')
     parser.add_argument('--send', metavar='<ip[:tcp_port]>', help='send FILE.')
     parser.add_argument(
-        'file', nargs='+', metavar='FILE',
+        'file', nargs='*', metavar='FILE',
         help='file or directory. On listen mode it is the saved directory. '
     )
 
@@ -47,13 +47,6 @@ def run():
     handler = logging.StreamHandler(sys.stderr)
     app_logger.addHandler(handler)
 
-    if args.listen:
-        if ':' in args.listen and not args.mode:
-            parser.error('the following arguments are required: <mode>')
-        server = NetDropServer(args.listen, mode=args.mode, ssl_ck=(args.cert, args.key))
-        server.saved_to(args.file[0])
-        server.wait_for_request()
-        return
     if args.send:
         if not args.mode:
             parser.error('Error: the following arguments are required: <mode>')
@@ -63,7 +56,21 @@ def run():
         else:
             client.send_files(args.file)
         return
-    parser.print_help()
+    else:
+        if args.listen:
+            listen = args.listen
+        else:
+            listen = '0.0.0.0'
+        if args.file:
+            saved_dir = args.file[0]
+        else:
+            saved_dir = './'
+        if ':' in listen and not args.mode:
+            parser.error('the following arguments are required: <mode>')
+        server = NetDropServer(listen, mode=args.mode, ssl_ck=(args.cert, args.key))
+        server.saved_to(saved_dir)
+        server.wait_for_request()
+        return
 
 
 if __name__ == '__main__':
