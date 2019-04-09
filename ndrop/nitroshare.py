@@ -286,7 +286,7 @@ class NitroshareServer(Transport):
     _data = None
     _nodes = None
     _loop_hello = True
-    _hello_interval = 10
+    _hello_interval = 5
 
     def __init__(self, owner, addr, ssl_ck=None):
         if ssl_ck:
