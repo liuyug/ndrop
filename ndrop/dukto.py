@@ -236,8 +236,9 @@ class UDPHandler(socketserver.BaseRequestHandler):
         self._packet = DuktoPacket()
 
     def handle(self):
-        data = bytearray(self.request[0])
-        self._packet.unpack_udp(self.server.agent, self.client_address, data)
+        if self.client_address[0] not in self.server.agent._ip_addrs:
+            data = bytearray(self.request[0])
+            self._packet.unpack_udp(self.server.agent, self.client_address, data)
 
 
 class TCPHandler(socketserver.BaseRequestHandler):
