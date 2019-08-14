@@ -24,7 +24,7 @@ def run():
         help='about')
 
     parser.add_argument('--mode', choices=['dukto', 'nitroshare'], metavar='<mode>',
-                        help='protocol mode: [dukto, nitroshare]')
+                        help='protocol mode: [dukto, nitroshare]. default: dukto')
     parser.add_argument('--cert', metavar='<cert file>', help='cert file.')
     parser.add_argument('--key', metavar='<key file>', help='key file.')
     parser.add_argument('--text', action='store_true',
@@ -48,9 +48,8 @@ def run():
     app_logger.addHandler(handler)
 
     if args.send:
-        if not args.mode:
-            parser.error('Error: the following arguments are required: <mode>')
-        client = NetDropClient(args.send, mode=args.mode, ssl_ck=(args.cert, args.key))
+        mode = args.mode or 'dukto'
+        client = NetDropClient(args.send, mode=mode, ssl_ck=(args.cert, args.key))
         if args.text:
             client.send_text(' '.join(args.file))
         else:
