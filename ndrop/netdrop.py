@@ -35,6 +35,7 @@ class NetDropServer(NetDrop):
     _file_io = None
     _bar = None
     _drop_directory = None
+    _read_only = False
 
     def __init__(self, addr, mode=None, ssl_ck=None):
         self._transport = []
@@ -43,6 +44,9 @@ class NetDropServer(NetDrop):
         if not mode or mode == 'nitroshare':
             self._transport.append(nitroshare.NitroshareServer(self, addr, ssl_ck=ssl_ck))
         self._drop_directory = os.path.abspath('./')
+        if not os.access(self._drop_directory, os.W_OK):
+            self._read_only = True
+            logger.warn('No permission to WRITE: %s' % self._drop_directory)
 
     def wait_for_request(self):
         try:
@@ -69,6 +73,9 @@ class NetDropServer(NetDrop):
             logger.error('File exists: %s !!!' % path)
             return
         self._drop_directory = os.path.abspath(path)
+        if not os.access(self._drop_directory, os.W_OK):
+            self._read_only = True
+            logger.warn('No permission to WRITE: %s' % self._drop_directory)
 
     def recv_feed_file(
             self, path, data, recv_size, file_size, total_recv_size, total_size):
@@ -77,6 +84,8 @@ class NetDropServer(NetDrop):
         if not self._file_io:  # new file, directory
             if self._drop_directory == '-':
                 self._file_io = sys.stdout.buffer
+            elif self._read_only:
+                logger.warn('No permission to WRITE: %s' % self._drop_directory)
             else:
                 name = os.path.join(self._drop_directory, path)
                 if file_size < 0:    # directory
@@ -88,7 +97,8 @@ class NetDropServer(NetDrop):
                 return
             self._md5 = hashlib.md5()  # create md5 for file
 
-        self._file_io.write(data)
+        if self._file_io and not self._read_only:
+            self._file_io.write(data)
         self._bar.update(len(data))
         self._md5.update(data)
 
