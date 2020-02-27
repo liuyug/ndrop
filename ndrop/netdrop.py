@@ -85,7 +85,8 @@ class NetDropServer(NetDrop):
             if self._drop_directory == '-':
                 self._file_io = sys.stdout.buffer
             elif self._read_only:
-                logger.warn('No permission to WRITE: %s' % self._drop_directory)
+                logger.warn('No permission WRITING to "%s" and drop it...' % os.path.join(
+                    self._drop_directory, path))
             else:
                 name = os.path.join(self._drop_directory, path)
                 if file_size < 0:    # directory
@@ -112,6 +113,8 @@ class NetDropServer(NetDrop):
                 digest = self._md5.hexdigest()
                 self._bar.write('%s  %s' % (digest, path), file=sys.stderr)
                 self._md5 = None
+            elif self._read_only:
+                pass
             else:   # directory
                 if not path.endswith(os.sep):
                     path += os.sep

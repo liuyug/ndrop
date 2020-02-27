@@ -377,7 +377,8 @@ class NitroshareServer(Transport):
             for broadcast in self._broadcasts:
                 sock.sendto(data, (broadcast, port))
         except Exception as err:
-            logger.error('send to "%s" error: %s' % (broadcast, err))
+            if err.errno != 101:
+                logger.error('[NitroShare]send to "%s" error: %s' % (broadcast, err))
         sock.close()
 
     def say_hello(self, dest):
@@ -389,7 +390,7 @@ class NitroshareServer(Transport):
             try:
                 sock.sendto(data, dest)
             except Exception as err:
-                logger.error('send to "%s" error: %s' % (dest, err))
+                logger.error('[NitroShare]send to "%s" error: %s' % (dest, err))
             sock.close()
 
     def loop_say_hello(self):
