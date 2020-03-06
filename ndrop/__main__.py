@@ -1,10 +1,13 @@
 
 import sys
+import time
 import argparse
 import logging
+import threading
 
 from . import about
 from .netdrop import NetDropServer, NetDropClient
+from .shell import NetDropShell
 
 
 logger = logging.getLogger(__name__)
@@ -23,6 +26,7 @@ def run():
             about.version, about.author, about.email),
         help='about')
 
+    parser.add_argument('--shell', action='store_true', help='Shell console.')
     parser.add_argument('--mode', choices=['dukto', 'nitroshare'], metavar='<mode>',
                         help='protocol mode: [dukto, nitroshare]. default: dukto')
     parser.add_argument('--cert', metavar='<cert file>', help='cert file.')
@@ -55,21 +59,35 @@ def run():
         else:
             client.send_files(args.file)
         return
+
+    if args.listen:
+        listen = args.listen
     else:
-        if args.listen:
-            listen = args.listen
-        else:
-            listen = '0.0.0.0'
-        if args.file:
-            saved_dir = args.file[0]
-        else:
-            saved_dir = './'
-        if ':' in listen and not args.mode:
-            parser.error('the following arguments are required: <mode>')
+        listen = '0.0.0.0'
+    if args.file:
+        saved_dir = args.file[0]
+    else:
+        saved_dir = './'
+    if ':' in listen and not args.mode:
+        parser.error('the following arguments are required: <mode>')
+
+    if args.shell:
+        logging.disable(sys.maxsize)
+        shell = NetDropShell()
+        server = NetDropServer(listen, mode=args.mode, ssl_ck=(args.cert, args.key))
+        server.saved_to(saved_dir)
+        threading.Thread(
+            name='netdrop server',
+            target=server.wait_for_request,
+            daemon=True,
+        ).start()
+
+        shell._server = server
+        shell.cmdloop()
+    else:
         server = NetDropServer(listen, mode=args.mode, ssl_ck=(args.cert, args.key))
         server.saved_to(saved_dir)
         server.wait_for_request()
-        return
 
 
 if __name__ == '__main__':

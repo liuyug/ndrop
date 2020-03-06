@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class NetDrop(object):
+    _name = 'NetDrop'
     _bar = None
     _transport = None
 
@@ -30,12 +31,14 @@ class NetDrop(object):
 
 
 class NetDropServer(NetDrop):
+    _name = 'NetDropServer'
     _transport = None
     _md5 = None
     _file_io = None
     _bar = None
     _drop_directory = None
     _read_only = False
+    _nodes = None
 
     def __init__(self, addr, mode=None, ssl_ck=None):
         self._transport = []
@@ -47,6 +50,7 @@ class NetDropServer(NetDrop):
         if not os.access(self._drop_directory, os.W_OK):
             self._read_only = True
             logger.warn('No permission to WRITE: %s' % self._drop_directory)
+        self._nodes = {}
 
     def wait_for_request(self):
         try:
@@ -137,8 +141,22 @@ class NetDropServer(NetDrop):
         self._file_io.close()
         self._file_io = None
 
+    def get_nodes(self):
+        nodes = []
+        for transport in self._transport:
+            for k, n in transport._nodes.items():
+                nodes.append({
+                    'mode': transport._name,
+                    'ip': k,
+                    'port': n['port'],
+                    'name': n['name'],
+                    'os': n['operating_system'],
+                })
+        return nodes
+
 
 class NetDropClient(NetDrop):
+    _name = 'NetDropClient'
     _transport = None
     _bar = None
     _md5 = None

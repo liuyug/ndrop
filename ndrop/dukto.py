@@ -47,6 +47,7 @@ def get_system_signature():
 
 
 class DuktoPacket():
+    _name = 'Dukto'
     _status = STATUS['idle']
     _record = 0
     _recv_record = 0
@@ -265,6 +266,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
 
 class DuktoServer(Transport):
+    _name = 'Dukto'
     _cert = None
     _key = None
     _owner = None
@@ -311,12 +313,12 @@ class DuktoServer(Transport):
 
     def wait_for_request(self):
         threading.Thread(
-            name='Online',
+            name='dukto server',
             target=self._udp_server.serve_forever,
             daemon=True,
         ).start()
         threading.Thread(
-            name='Hello',
+            name='dukto hello',
             target=self.loop_say_hello,
             daemon=True,
         ).start()
@@ -397,9 +399,13 @@ class DuktoServer(Transport):
     def add_node(self, ip, port, signature):
         if ip not in self._nodes:
             logger.info('Online : [Dukto] %s:%s - %s' % (ip, port, signature))
+            info = signature.split(' ')
             self._nodes[ip] = {
                 'port': port,
                 'signature': signature,
+                'user': info[0],
+                'name': info[2],
+                'operating_system': info[3].strip('()'),
             }
 
     def remove_node(self, ip):

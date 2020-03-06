@@ -274,6 +274,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
 
 class NitroshareServer(Transport):
+    _name = 'NitroShare'
     _cert = None
     _key = None
     _owner = None
@@ -328,12 +329,12 @@ class NitroshareServer(Transport):
 
     def wait_for_request(self):
         threading.Thread(
-            name='Online',
+            name='nitroshare server',
             target=self._udp_server.serve_forever,
             daemon=True,
         ).start()
         threading.Thread(
-            name='Hello',
+            name='nitroshare hello',
             target=self.loop_say_hello,
             daemon=True,
         ).start()
