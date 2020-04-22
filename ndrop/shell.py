@@ -32,33 +32,43 @@ class NetDropShell(cmd.Cmd):
         self.close()
         return True
 
+    def do_q(self, arg):
+        'Alias for quit.'
+        return self.do_quit(arg)
+
     def do_mode(self, arg):
         'Set client mode: "dukto" or "nitroshare"'
         if arg and arg in ['dukto', 'nitroshare']:
             self._mode = arg
         print(f'Mode: {self._mode}')
 
-    def do_nodes(self, arg):
+    def do_node(self, arg):
         'List online nodes.'
-        for node in self._server.get_nodes():
-            print(node)
+        nodes = self._server.get_nodes()
+        if not nodes:
+            print('[]')
+            return
+        for node in nodes:
+            print('%(name)s on %(ip)s[%(os)s] with %(mode)s' % node)
 
-    def do_send_text(self, arg):
-        'Send TEXT. "<ip> <TEXT>"'
-        ip, message = arg.split(' ')
+    def do_text(self, arg):
+        'Send TEXT: text <ip> <text>'
+        ip, _, text = arg.partition(' ')
+        text = text or 'ndrop test...'
         mode = self._mode or 'dukto'
         client = NetDropClient(ip, mode=mode)
-        client.send_text('hello')
+        client.send_text(text)
 
-    def do_send_file(self, arg):
-        'Send FILE. "<ip> <file name>"'
-        ip, fname = arg.split(' ')
+    def do_send(self, arg):
+        'Send FILE: send <ip> <file name>'
+        ip, _, fname = arg.partition(' ')
         if not os.path.exists(fname):
             print(f'Could not find file "{fname}"')
             return
+        fnames = [fname]
         mode = self._mode or 'dukto'
         client = NetDropClient(ip, mode=mode)
-        client.send_file(fname)
+        client.send_files(fnames)
 
     def do_ls(self, arg):
         'List files in local directory.'
