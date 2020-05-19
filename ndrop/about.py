@@ -1,8 +1,8 @@
 
 name = 'ndrop'
-version = '1.3.12'
+version = '1.4.0'
 author = 'Yugang LIU'
 email = 'liuyug@gmail.com'
 url = 'https://github.com/liuyug/ndrop.git'
 license = 'MIT'
-description = 'File Transfer Tool. Compatible "Dukto" and "NitroShare"'
+description = 'File Transfer Tool. Compatible "Dukto", "NitroShare" and "HFS"'

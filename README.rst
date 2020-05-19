@@ -7,6 +7,7 @@ Feature
 =======
 +   Just drop. No authentication, no authorize, use in trusted network.
 +   compatible "Dukto_" and "NitroShare_"
++   HFS (HTTP File Server)
 +   only CLI mode, no GUI. Dukto_ or NitroShare_ all provide GUI window.
 +   transfer File, Directory. Dukto_ also send TEXT
 +   output to DISK or STDOUT
