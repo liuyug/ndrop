@@ -7,7 +7,7 @@ from .netdrop import NetDropServer, NetDropClient
 
 
 class NetDropShell(cmd.Cmd):
-    intro = f'Welcome to NDrop shell v{version}. Type help or ? to list commands.'
+    intro = f'Welcome to Ndrop shell v{version}. Type help or ? to list commands.'
     prompt = '(ndrop)$ '
     _mode = None
     _server = None
@@ -28,7 +28,7 @@ class NetDropShell(cmd.Cmd):
 
     def do_quit(self, arg):
         'Close ndrop shell and exit.'
-        print('Thank you for using NDrop')
+        print('Thank you for using Ndrop')
         self.close()
         return True
 
