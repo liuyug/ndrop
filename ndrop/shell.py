@@ -59,7 +59,7 @@ class NetDropShell(cmd.Cmd):
         client = NetDropClient(ip, mode=mode)
         client.send_text(text)
 
-    def do_send(self, arg):
+    def do_file(self, arg):
         'Send FILE: send <ip> <file name>'
         ip, _, fname = arg.partition(' ')
         if not os.path.exists(fname):

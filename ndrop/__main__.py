@@ -121,7 +121,7 @@ def run():
         shell._server = server
         shell.cmdloop()
     else:
-        logger.info('File Transfer start (Press CTRL+C to quit)')
+        logger.info('File Transfer Server start (Press CTRL+C to quit)')
         server = NetDropServer(listen, mode=args.mode, ssl_ck=(args.cert, args.key))
         server.saved_to(saved_dir)
         server.wait_for_request()
