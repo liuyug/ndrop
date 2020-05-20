@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class NetDrop(object):
-    _name = 'NetDrop'
+    _name = 'Ndrop'
     _bar = None
     _transport = None
 
@@ -31,7 +31,7 @@ class NetDrop(object):
 
 
 class NetDropServer(NetDrop):
-    _name = 'NetDropServer'
+    _name = 'NdropServer'
     _transport = None
     _md5 = None
     _file_io = None
@@ -156,7 +156,7 @@ class NetDropServer(NetDrop):
 
 
 class NetDropClient(NetDrop):
-    _name = 'NetDropClient'
+    _name = 'NdropClient'
     _transport = None
     _bar = None
     _md5 = None

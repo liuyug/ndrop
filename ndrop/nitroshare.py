@@ -340,10 +340,10 @@ class NitroshareServer(Transport):
         ).start()
 
         if len(self._ip_addrs) > 1:
-            logger.info('[NitroShare] listen on %s:%s(tcp):%s(udp) - [%s]' % (
+            logger.info('[NitroShare] listen on %s:%s(tcp):%s(udp) - bind on %s' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1],
                 self._udp_server.server_address[1],
-                ','.join(self._ip_addrs),
+                ', '.join(self._ip_addrs),
             ))
         else:
             logger.info('[NitroShare] listen on %s:%s(tcp):%s(udp)' % (

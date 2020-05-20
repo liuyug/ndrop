@@ -15,16 +15,15 @@ logger = logging.getLogger(__name__)
 
 
 def run():
-    description = about.description
-    epilog = 'NOTE: Output data to STDOUT if "PARM" is "-". ' \
+    description = '%s\n%s' % (about.description, about.detail)
+    epilog = 'NOTE: Output data to STDOUT if "PARAM" is "-". ' \
         'To generate new cert/key: ' \
         '"openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 3650"'
     parser = argparse.ArgumentParser(prog=about.name, description=description, epilog=epilog)
     parser.add_argument('-v', '--verbose', action='store_true', help='output debug message')
     parser.add_argument(
         '--version', action='version',
-        version='%%(prog)s version %s - written by %s <%s>' % (
-            about.version, about.author, about.email),
+        version=about.banner,
         help='about')
 
     group = parser.add_argument_group('Transport Layer Security. TLS/SSL')
@@ -33,18 +32,17 @@ def run():
 
     group = parser.add_argument_group('Transport Layer')
     group.add_argument('--listen',
-                       metavar='<ip[:tcp_port[:udp_port]]>',
-                       help='listen on... '
-                       '"tcp_port" is file transfer port. "udp_port" is node message port.')
+                       metavar='<ip[:port]>',
+                       help='listen on...')
 
     group.add_argument('--send',
-                       metavar='<ip[:tcp_port]>',
+                       metavar='<ip[:port]>',
                        help='send to...')
 
     parser.add_argument(
-        'parm', nargs='*',
-        metavar='<PARM>',
-        help='file, text or directory. On listen mode it is the saved directory. '
+        'param', nargs='*',
+        metavar='<PARAM>',
+        help='file, text or directory. refer to other option'
     )
 
     group = parser.add_argument_group('Shell console')
@@ -55,20 +53,24 @@ def run():
     group = parser.add_argument_group('HTTP File Server')
     group.add_argument('--hfs',
                        action='store_true',
-                       help='HTTP Server Address. default: 0.0.0.0:8000')
+                       help='start HTTP File Server.'
+                       ' use "--listen" to change server address.'
+                       ' "PARAM" is root path.')
 
-    group = parser.add_argument_group('Application mode: Dukto, Nitroshare')
+    group = parser.add_argument_group('Application Layer Mode: Dukto, Nitroshare')
     group.add_argument('--mode', choices=['dukto', 'nitroshare'],
                        metavar='<mode>',
-                       help='use mode: [dukto, nitroshare]. default: dukto.')
+                       help='application mode: [dukto, nitroshare]. default: dukto.')
 
     group.add_argument('--file',
                        action='store_true',
-                       help='sent FILE with "dukto" or "nitroshare" mode.')
+                       help='sent FILE with "dukto" or "nitroshare" mode.'
+                       ' "PARAM" is files')
 
     group.add_argument('--text',
                        action='store_true',
-                       help='sent TEXT with "dukto" mode.')
+                       help='sent TEXT with "dukto" mode.'
+                       ' "PARAM" is message')
 
     args = parser.parse_args()
 
@@ -76,39 +78,42 @@ def run():
     app_logger.setLevel(logging.INFO)
     if args.verbose:
         app_logger.setLevel(logging.DEBUG)
+
+    FORMAT = ' * %(message)s'
     handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter(fmt=FORMAT))
     app_logger.addHandler(handler)
 
+    print(about.banner)
     if args.send:
         mode = args.mode or 'dukto'
-
         client = NetDropClient(args.send, mode=mode, ssl_ck=(args.cert, args.key))
         if args.text:
-            client.send_text(' '.join(args.parm))
+            client.send_text(' '.join(args.param))
         else:
-            client.send_files(args.parm)
+            client.send_files(args.param)
         return
 
     if args.listen:
         listen = args.listen
     else:
         listen = '0.0.0.0'
-    if args.parm:
-        saved_dir = args.parm[0]
+    if args.param:
+        saved_dir = args.param[0]
     else:
         saved_dir = './'
     if ':' in listen and not args.mode:
         parser.error('the following arguments are required: <mode>')
 
     if args.hfs:
-        hfs.start(listen, root_path=saved_dir)
+        hfs.start(listen, root_path=saved_dir, cert=args.cert, key=args.key)
     elif args.shell:
         logging.disable(sys.maxsize)
         shell = NetDropShell()
         server = NetDropServer(listen, mode=args.mode, ssl_ck=(args.cert, args.key))
         server.saved_to(saved_dir)
         threading.Thread(
-            name='ndrop server',
+            name='Ndrop server',
             target=server.wait_for_request,
             daemon=True,
         ).start()
@@ -116,6 +121,7 @@ def run():
         shell._server = server
         shell.cmdloop()
     else:
+        logger.info('File Transfer start (Press CTRL+C to quit)')
         server = NetDropServer(listen, mode=args.mode, ssl_ck=(args.cert, args.key))
         server.saved_to(saved_dir)
         server.wait_for_request()

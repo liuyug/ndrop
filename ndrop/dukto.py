@@ -325,10 +325,10 @@ class DuktoServer(Transport):
 
         logger.info('My Node: %s' % self._node)
         if len(self._ip_addrs) > 1:
-            logger.info('[Dukto] listen on %s:%s(tcp):%s(udp) - [%s]' % (
+            logger.info('[Dukto] listen on %s:%s(tcp):%s(udp) - bind on %s' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1],
                 self._udp_server.server_address[1],
-                ','.join(self._ip_addrs),
+                ', '.join(self._ip_addrs),
             ))
         else:
             logger.info('[Dukto] listen on %s:%s(tcp):%s(udp)' % (
