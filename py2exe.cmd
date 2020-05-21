@@ -1,6 +1,6 @@
 
 rmdir build /s /q
-rmdir dist\ndrop /s /q
+del dist\ndrop.exe /q
 pyinstaller ndrop.spec
 
 dist\ndrop.exe
