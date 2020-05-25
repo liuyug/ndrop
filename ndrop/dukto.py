@@ -10,6 +10,7 @@ import getpass
 import platform
 
 from .transport import Transport, get_broadcast_address
+from .about import get_system_symbol
 
 
 logger = logging.getLogger(__name__)
@@ -39,11 +40,23 @@ def set_chunk_size(size=None):
         CHUNK_SIZE = sndbuf
 
 
-def get_system_signature():
+def create_signature():
     user = getpass.getuser()
     uname = platform.uname()
     signature = '%s at %s (%s)' % (user, uname.node, uname.system)
     return signature
+
+
+def parse_signature(signature):
+    s = signature.split(' ')
+    s[-1] = s[-1].strip('()')
+    del s[1]
+    return s
+
+
+def format_signature(signature):
+    s = parse_signature(signature)
+    return '%s@%s (%s)' % (s[0], s[1], get_system_symbol(s[2]))
 
 
 class DuktoPacket():
@@ -284,7 +297,7 @@ class DuktoServer(Transport):
     def __init__(self, owner, addr, ssl_ck=None):
         if ssl_ck:
             self._cert, self._key = ssl_ck
-        self._node = get_system_signature()
+        self._node = create_signature()
         self._owner = owner
         self._data = bytearray()
         addr = addr.split(':')
@@ -323,7 +336,7 @@ class DuktoServer(Transport):
             daemon=True,
         ).start()
 
-        logger.info('My Node: %s' % self._node)
+        logger.info('My Node: %s' % format_signature(self._node))
         if len(self._ip_addrs) > 1:
             logger.info('[Dukto] listen on %s:%s(tcp):%s(udp) - bind on %s' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1],
@@ -398,7 +411,8 @@ class DuktoServer(Transport):
 
     def add_node(self, ip, port, signature):
         if ip not in self._nodes:
-            logger.info('Online : [Dukto] %s:%s - %s' % (ip, port, signature))
+            logger.info('Online : [Dukto] %s:%s - %s' % (
+                ip, port, format_signature(signature)))
             info = signature.split(' ')
             self._nodes[ip] = {
                 'port': port,
@@ -411,7 +425,7 @@ class DuktoServer(Transport):
     def remove_node(self, ip):
         if ip in self._nodes:
             logger.info('Offline: [Dukto] %s:%s - %s' % (
-                ip, self._nodes[ip]['port'], self._nodes[ip]['signature']))
+                ip, self._nodes[ip]['port'], format_signature(self._nodes[ip]['signature'])))
             del self._nodes[ip]
 
 

@@ -10,3 +10,12 @@ detail = 'Compatible "Dukto" and "NitroShare". support "HTTP File Server (HFS)"'
 
 banner = '%s v%s - %s' % (name.capitalize(), version, description)
 about = '%s v%s - written by %s <%s>' % (name.capitalize(), version, author, email)
+
+
+def get_system_symbol(system):
+    symbols = {
+        'linux': '🐧',
+        'apple': '🍎',
+        'window': '🪟',
+    }
+    return symbols.get(system.lower())

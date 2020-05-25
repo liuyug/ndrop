@@ -13,6 +13,7 @@ import uuid
 import json
 
 from .transport import Transport, get_broadcast_address
+from .about import get_system_symbol
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,22 @@ def set_chunk_size(size=None):
         sndbuf = s.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
         logger.debug('set CHUNK_SIZE: %s' % sndbuf)
         CHUNK_SIZE = sndbuf
+
+
+def create_signature(node):
+    signature = '%(name)s (%(operating_system)s)' % (node)
+    return signature
+
+
+def parse_signature(signature):
+    s = signature.split(' ')
+    s[-1] = s[-1].strip('()')
+    return s
+
+
+def format_signature(signature):
+    s = parse_signature(signature)
+    return '@%s(%s)' % (s[0], get_system_symbol(s[1]))
 
 
 class Packet():
@@ -402,8 +419,9 @@ class NitroshareServer(Transport):
 
     def add_node(self, ip, node):
         if ip not in self._nodes:
-            logger.info('Online : [NitroShare] %s:%s - %s (%s)' % (
-                ip, node['port'], node['name'], node['operating_system']))
+            signature = create_signature(node)
+            logger.info('Online : [NitroShare] %s:%s - %s' % (
+                ip, node['port'], format_signature(signature)))
             self._nodes[ip] = node
             self._nodes[ip]['last_ping'] = datetime.datetime.now()
 
@@ -424,8 +442,9 @@ class NitroshareServer(Transport):
     def remove_node(self, ip):
         if ip in self._nodes:
             node = self._nodes[ip]
-            logger.info('Offline: [NitroShare] %s:%s - %s (%s)' % (
-                ip, node['port'], node['name'], node['operating_system']))
+            signature = create_signature(node)
+            logger.info('Offline: [NitroShare] %s:%s - %s' % (
+                ip, node['port'], format_signature(signature)))
             del self._nodes[ip]
 
 
