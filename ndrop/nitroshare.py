@@ -430,10 +430,12 @@ class NitroshareServer(Transport):
             del self._nodes[ip]
 
     def get_signature(self, node=None):
-        signature = '%(name)s (%(operating_system)s)' % (node or self._node)
+        node = node or self._node
+        signature = '%(name)s (%(operating_system)s)' % node
         return signature
 
-    def format_node(self, node):
+    def format_node(self, node=None):
+        node = node or self._node
         return '@%s(%s)' % (node['name'], get_system_symbol(node['operating_system']))
 
 

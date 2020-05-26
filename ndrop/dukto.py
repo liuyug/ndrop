@@ -319,7 +319,7 @@ class DuktoServer(Transport):
             daemon=True,
         ).start()
 
-        logger.info('My Node: %s' % self.format_node(self._node))
+        logger.info('My Node: %s' % self.format_node())
         if len(self._ip_addrs) > 1:
             logger.info('[Dukto] listen on %s:%s(tcp):%s(udp) - bind on %s' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1],
@@ -412,7 +412,8 @@ class DuktoServer(Transport):
             del self._nodes[ip]
 
     def get_signature(self, node=None):
-        signature = '%(user)s at %(name)s (%(operating_system)s)' % (node or self._node)
+        node = node or self._node
+        signature = '%(user)s at %(name)s (%(operating_system)s)' % node
         return signature
 
     def create_node(self):
@@ -426,7 +427,8 @@ class DuktoServer(Transport):
         }
         return node
 
-    def format_node(self, node):
+    def format_node(self, node=None):
+        node = node or self._node
         return '%s@%s(%s)' % (
             node['user'], node['name'],
             get_system_symbol(node['operating_system'])
