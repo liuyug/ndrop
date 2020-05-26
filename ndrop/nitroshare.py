@@ -41,22 +41,6 @@ def set_chunk_size(size=None):
         CHUNK_SIZE = sndbuf
 
 
-def create_signature(node):
-    signature = '%(name)s (%(operating_system)s)' % (node)
-    return signature
-
-
-def parse_signature(signature):
-    s = signature.split(' ')
-    s[-1] = s[-1].strip('()')
-    return s
-
-
-def format_signature(signature):
-    s = parse_signature(signature)
-    return '@%s(%s)' % (s[0], get_system_symbol(s[1]))
-
-
 class Packet():
     _status = STATUS['idle']
     _record = 0
@@ -419,11 +403,10 @@ class NitroshareServer(Transport):
 
     def add_node(self, ip, node):
         if ip not in self._nodes:
-            signature = create_signature(node)
-            logger.info('Online : [NitroShare] %s:%s - %s' % (
-                ip, node['port'], format_signature(signature)))
             self._nodes[ip] = node
             self._nodes[ip]['last_ping'] = datetime.datetime.now()
+            logger.info('Online : [NitroShare] %s:%s - %s' % (
+                ip, node['port'], self.format_node(self._nodes[ip])))
 
     def update_node(self, ip, node):
         now = datetime.datetime.now()
@@ -442,10 +425,16 @@ class NitroshareServer(Transport):
     def remove_node(self, ip):
         if ip in self._nodes:
             node = self._nodes[ip]
-            signature = create_signature(node)
             logger.info('Offline: [NitroShare] %s:%s - %s' % (
-                ip, node['port'], format_signature(signature)))
+                ip, node['port'], self.format_node(node)))
             del self._nodes[ip]
+
+    def get_signature(self, node=None):
+        signature = '%(name)s (%(operating_system)s)' % (node or self._node)
+        return signature
+
+    def format_node(self, node):
+        return '@%s(%s)' % (node['name'], get_system_symbol(node['operating_system']))
 
 
 class NitroshareClient(Transport):

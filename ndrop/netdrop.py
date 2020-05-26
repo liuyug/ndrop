@@ -151,6 +151,7 @@ class NetDropServer(NetDrop):
                     'port': n['port'],
                     'name': n['name'],
                     'os': n['operating_system'],
+                    'format': transport.format_node(n)
                 })
         return nodes
 

@@ -18,4 +18,4 @@ def get_system_symbol(system):
         'apple': '🍎',
         'window': '🪟',
     }
-    return symbols.get(system.lower())
+    return symbols.get(system.lower(), system)

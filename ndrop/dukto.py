@@ -40,25 +40,6 @@ def set_chunk_size(size=None):
         CHUNK_SIZE = sndbuf
 
 
-def create_signature():
-    user = getpass.getuser()
-    uname = platform.uname()
-    signature = '%s at %s (%s)' % (user, uname.node, uname.system)
-    return signature
-
-
-def parse_signature(signature):
-    s = signature.split(' ')
-    s[-1] = s[-1].strip('()')
-    del s[1]
-    return s
-
-
-def format_signature(signature):
-    s = parse_signature(signature)
-    return '%s@%s (%s)' % (s[0], s[1], get_system_symbol(s[2]))
-
-
 class DuktoPacket():
     _name = 'Dukto'
     _status = STATUS['idle']
@@ -110,7 +91,7 @@ class DuktoPacket():
                 tcp_port = int.from_bytes(value, byteorder='little', signed=True)
             else:
                 tcp_port = DEFAULT_TCP_PORT
-            if data != agent._node.encode('utf-8'):  # no me
+            if data != agent.get_signature().encode('utf-8'):  # no me
                 if msg_type in [0x01, 0x04]:    # <broadcast>
                     agent.say_hello((client_address[0], agent._udp_port))
                 agent.add_node(client_address[0], tcp_port, data.decode('utf-8'))
@@ -291,21 +272,23 @@ class DuktoServer(Transport):
     _udp_port = DEFAULT_UDP_PORT
     _packet = None
     _data = None
+    _node = None
     _nodes = None
     _loop_hello = True
 
     def __init__(self, owner, addr, ssl_ck=None):
         if ssl_ck:
             self._cert, self._key = ssl_ck
-        self._node = create_signature()
-        self._owner = owner
-        self._data = bytearray()
         addr = addr.split(':')
         ip = addr.pop(0)
         if len(addr) > 0:
             self._tcp_port = int(addr.pop(0))
         if len(addr) > 0:
             self._udp_port = int(addr.pop(0))
+
+        self._node = self.create_node()
+        self._owner = owner
+        self._data = bytearray()
 
         self._packet = DuktoPacket()
 
@@ -336,7 +319,7 @@ class DuktoServer(Transport):
             daemon=True,
         ).start()
 
-        logger.info('My Node: %s' % format_signature(self._node))
+        logger.info('My Node: %s' % self.format_node(self._node))
         if len(self._ip_addrs) > 1:
             logger.info('[Dukto] listen on %s:%s(tcp):%s(udp) - bind on %s' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1],
@@ -389,7 +372,8 @@ class DuktoServer(Transport):
         sock.close()
 
     def say_hello(self, dest):
-        data = self._packet.pack_hello(self._node, self._tcp_port, dest)
+        data = self._packet.pack_hello(
+            self.get_signature(), self._tcp_port, dest)
         if dest[0] == '<broadcast>':
             self.send_broadcast(data, dest[1])
         else:
@@ -411,22 +395,42 @@ class DuktoServer(Transport):
 
     def add_node(self, ip, port, signature):
         if ip not in self._nodes:
-            logger.info('Online : [Dukto] %s:%s - %s' % (
-                ip, port, format_signature(signature)))
             info = signature.split(' ')
             self._nodes[ip] = {
                 'port': port,
-                'signature': signature,
                 'user': info[0],
                 'name': info[2],
                 'operating_system': info[3].strip('()'),
             }
+            logger.info('Online : [Dukto] %s:%s - %s' % (
+                ip, port, self.format_node(self._nodes[ip])))
 
     def remove_node(self, ip):
         if ip in self._nodes:
             logger.info('Offline: [Dukto] %s:%s - %s' % (
-                ip, self._nodes[ip]['port'], format_signature(self._nodes[ip]['signature'])))
+                ip, self._nodes[ip]['port'], self.format_node(self._nodes[ip])))
             del self._nodes[ip]
+
+    def get_signature(self, node=None):
+        signature = '%(user)s at %(name)s (%(operating_system)s)' % (node or self._node)
+        return signature
+
+    def create_node(self):
+        user = getpass.getuser()
+        uname = platform.uname()
+        node = {
+            'port': self._tcp_port,
+            'user': user,
+            'name': uname.node,
+            'operating_system': uname.system,
+        }
+        return node
+
+    def format_node(self, node):
+        return '%s@%s(%s)' % (
+            node['user'], node['name'],
+            get_system_symbol(node['operating_system'])
+        )
 
 
 class DuktoClient(Transport):
