@@ -49,7 +49,7 @@ class NetDropShell(cmd.Cmd):
             print('[]')
             return
         for node in nodes:
-            print('[%(ip)s[%(os)s] %(format)s' % node)
+            print('[%(ip)s[%(port)s] %(format)s' % node)
 
     def do_text(self, arg):
         'Send TEXT: text <ip> <text>'
