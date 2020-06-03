@@ -11,13 +11,15 @@ logger = logging.getLogger(__name__)
 def get_broadcast_address(ip_addr=None):
     ip_addrs = []
     broadcasts = []
+    exclude_ipaddr = ['127.0', '169.254']
     if not ip_addr or ip_addr == '0.0.0.0':
         for ifname in netifaces.interfaces():
             if_addr = netifaces.ifaddresses(ifname)
             for addr in if_addr.get(socket.AF_INET, []):
                 ip_addr = addr.get('addr')
-                if ip_addr.startswith('169.254'):
-                    continue
+                for e_ip in exclude_ipaddr:
+                    if ip_addr.startswith(e_ip):
+                        continue
                 broadcast = addr.get('broadcast')
                 ip_addr and ip_addrs.append(ip_addr)
                 broadcast and broadcast not in broadcasts \
@@ -27,8 +29,9 @@ def get_broadcast_address(ip_addr=None):
             if_addr = netifaces.ifaddresses(ifname)
             for addr in if_addr.get(socket.AF_INET, []):
                 if ip_addr == addr.get('addr'):
-                    if ip_addr.startswith('169.254'):
-                        continue
+                    for e_ip in exclude_ipaddr:
+                        if ip_addr.startswith(e_ip):
+                            continue
                     ip_addrs.append(ip_addr)
                     broadcast = addr.get('broadcast')
                     broadcasts.append(broadcast)

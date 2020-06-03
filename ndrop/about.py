@@ -16,6 +16,9 @@ def get_system_symbol(system):
     symbols = {
         'linux': '🐧',
         'apple': '🍎',
-        'window': '🪟',
+        'windows': '',
+        # 'android': '',
+        # 'linux': '',
+        # 'apple': '',
     }
     return symbols.get(system.lower(), system)
