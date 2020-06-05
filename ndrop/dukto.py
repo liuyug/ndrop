@@ -148,7 +148,7 @@ class DuktoPacket():
                             chunk = chunk[:size - send_size]
                             print('File Changed: [%s] %s => %s.' % (name, size, send_size))
                             cont = input('Drop data and continue? [Yes/No]')
-                            if cont != 'Yes':
+                            if cont.lower() != 'yes':
                                 transfer_abort = True
                         send_size += len(chunk)
                         total_send_size += len(chunk)
@@ -264,8 +264,8 @@ class TCPHandler(socketserver.BaseRequestHandler):
             try:
                 self._packet.unpack_tcp(self.server.agent, self._recv_buff)
             except Exception as err:
-                logger.error('%s - [%s]' % (err, self._recv_buff.hex()))
-                break
+                logger.error('%s' % err)
+                raise
         self.server.agent.request_finish()
 
     def finish(self):
@@ -482,8 +482,8 @@ class DuktoClient(Transport):
             sock.sendall(data)
         except KeyboardInterrupt:
             pass
-        except Exception:
-            pass
+        except Exception as err:
+            print(err)
         sock.close()
         self.send_finish()
 
@@ -502,8 +502,8 @@ class DuktoClient(Transport):
                 sock.sendall(chunk)
         except KeyboardInterrupt:
             pass
-        except Exception:
-            pass
+        except Exception as err:
+            print(err)
         sock.close()
         self.send_finish()
 
