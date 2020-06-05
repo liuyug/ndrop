@@ -1,4 +1,4 @@
-
+import sys
 import datetime
 import time
 import logging
@@ -94,6 +94,7 @@ class Packet():
     def pack_files(self, agent, total_size, files):
         data = bytearray()
         total_send_size = 0
+        transfer_abort = False
         for path, name, size in files:
             # file header
             jdata = {}
@@ -124,12 +125,21 @@ class Packet():
                     send_size, 0, total_send_size, total_size,
                 )
             else:
+                file_changed = False
                 with open(path, 'rb') as f:
-                    while True:
+                    while not file_changed:
                         packet_size = min(CHUNK_SIZE - len(data), size - send_size)
                         chunk = f.read(packet_size)
                         if not chunk:
                             break
+                        if (send_size + len(chunk)) > size:
+                            file_changed = True
+                            # correct size
+                            chunk = chunk[:size - send_size]
+                            print('File Changed: [%s] %s => %s.' % (name, size, send_size))
+                            cont = input('Drop data and continue? [Yes/No]')
+                            if cont != 'Yes':
+                                transfer_abort = True
                         # binary header, every binary packet is less than CHUNK_SIZE
                         data.extend((packet_size + 1).to_bytes(4, byteorder='little', signed=True))
                         data.append(0x03)
@@ -144,10 +154,13 @@ class Packet():
                             yield data
                             data.clear()
             agent.send_finish_file(name)
-
+            if transfer_abort:
+                break
         if len(data) > 0:
             yield data
             data.clear()
+        if transfer_abort:
+            sys.exit('Transfer Abort!!!')
 
     def unpack_tcp(self, agent, data):
         while len(data) > 0:

@@ -1,4 +1,4 @@
-
+import sys
 import time
 import logging
 import os.path
@@ -121,6 +121,7 @@ class DuktoPacket():
     def pack_files(self, agent, total_size, files):
         data = bytearray()
         total_send_size = 0
+        transfer_abort = False
         for path, name, size in files:
             data.extend(name.encode('utf-8'))
             data.append(0x00)
@@ -135,11 +136,20 @@ class DuktoPacket():
                     name, b'',
                     send_size, 0, total_send_size, total_size)
             else:
+                file_changed = False
                 with open(path, 'rb') as f:
-                    while True:
+                    while not file_changed:
                         chunk = f.read(CHUNK_SIZE - len(data))
                         if not chunk:
                             break
+                        if (send_size + len(chunk)) > size:
+                            file_changed = True
+                            # correct size
+                            chunk = chunk[:size - send_size]
+                            print('File Changed: [%s] %s => %s.' % (name, size, send_size))
+                            cont = input('Drop data and continue? [Yes/No]')
+                            if cont != 'Yes':
+                                transfer_abort = True
                         send_size += len(chunk)
                         total_send_size += len(chunk)
                         agent.send_feed_file(
@@ -151,10 +161,13 @@ class DuktoPacket():
                             yield data
                             data.clear()
             agent.send_finish_file(name)
-
+            if transfer_abort:
+                break
         if len(data) > 0:
             yield data
             data.clear()
+        if transfer_abort:
+            sys.exit('Transfer Abort!!!')
 
     def unpack_tcp(self, agent, data):
         while len(data) > 0:
