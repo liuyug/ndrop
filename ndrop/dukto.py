@@ -333,7 +333,7 @@ class DuktoServer(Transport):
         ).start()
 
         logger.info('My Node: %s' % self.format_node())
-        if len(self._ip_addrs) > 1:
+        if self._tcp_server.server_address[0] == '0.0.0.0':
             logger.info('[Dukto] listen on %s:%s(tcp):%s(udp) - bind on %s' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1],
                 self._udp_server.server_address[1],
