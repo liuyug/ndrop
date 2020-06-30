@@ -382,7 +382,7 @@ class DuktoServer(Transport):
         except Exception as err:
             if err.errno != 101:
                 logger.error('[Dukto]send to "%s" error: %s' % (broadcast, err))
-        logger.info('Delay {}s after UDP broadcast'.format(self.delay_after_udp_broadcast))
+        logger.debug('Delay {}s after UDP broadcast'.format(self.delay_after_udp_broadcast))
         time.sleep(self.delay_after_udp_broadcast)
         sock.close()
 
@@ -397,7 +397,7 @@ class DuktoServer(Transport):
                 sock.sendto(data, dest)
             except Exception as err:
                 logger.error('[Dukto]send to "%s" error: %s' % (dest, err))
-            logger.info('Delay {}s after UDP unicast to {}:{}'.format(self.delay_after_udp_broadcast, *dest))
+            logger.debug('Delay {}s after UDP unicast to {}:{}'.format(self.delay_after_udp_broadcast, *dest))
             time.sleep(self.delay_after_udp_broadcast)
             sock.close()
 
