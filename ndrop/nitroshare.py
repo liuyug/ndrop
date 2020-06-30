@@ -296,6 +296,7 @@ class NitroshareServer(Transport):
     _udp_server = None
     _tcp_port = DEFAULT_TCP_PORT
     _udp_port = DEFAULT_UDP_PORT
+    _unicast_sock = None
     _broadcast_sock = None
     _ip_addrs = None
     _broadcasts = None
@@ -340,6 +341,7 @@ class NitroshareServer(Transport):
         self._tcp_server.agent = self
         set_chunk_size()
 
+        self._unicast_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._broadcast_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._broadcast_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self._ip_addrs, self._broadcasts = get_broadcast_address(ip)
@@ -404,12 +406,10 @@ class NitroshareServer(Transport):
         if dest[0] == '<broadcast>':
             self.send_broadcast(data, dest[1])
         else:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             try:
-                sock.sendto(data, dest)
+                self._unicast_sock.sendto(data, dest)
             except Exception as err:
                 logger.error('[NitroShare]send to "%s" error: %s' % (dest, err))
-            sock.close()
 
     def loop_say_hello(self):
         while self._loop_hello:
