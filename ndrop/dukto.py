@@ -279,6 +279,7 @@ class DuktoServer(Transport):
     _owner = None
     _tcp_server = None
     _udp_server = None
+    _broadcast_sock = None
     _ip_addrs = None
     _broadcasts = None
     _tcp_port = DEFAULT_TCP_PORT
@@ -318,6 +319,8 @@ class DuktoServer(Transport):
         self._tcp_server.agent = self
         set_chunk_size()
 
+        self._broadcast_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._broadcast_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self._ip_addrs, self._broadcasts = get_broadcast_address(ip)
 
     def wait_for_request(self):
@@ -373,16 +376,15 @@ class DuktoServer(Transport):
         self._owner.request_finish()
 
     def send_broadcast(self, data, port):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         try:
             for broadcast in self._broadcasts:
-                sock.sendto(data, (broadcast, port))
-        except Exception as err:
-            if err.errno != 101:
-                logger.error('[Dukto]send to "%s" error: %s' % (broadcast, err))
-
-        sock.close()
+                num = self._broadcast_sock.sendto(data, (broadcast, port))
+                assert num == len(data), (broadcast, port, num, len(data))
+        except (socket.herror, socket.gaierror, socket.timeout) as err:
+            if err.errno == 101:  # Network is unreachable
+                pass
+            else:
+                logger.error('[Dukto] send broadcast to "%s:%s": %s' % (broadcast, port, err))
 
     def say_hello(self, dest):
         data = self._packet.pack_hello(
@@ -394,7 +396,7 @@ class DuktoServer(Transport):
             try:
                 sock.sendto(data, dest)
             except Exception as err:
-                logger.error('[Dukto]send to "%s" error: %s' % (dest, err))
+                logger.error('[Dukto] send to "%s" error: %s' % (dest, err))
             sock.close()
 
     def loop_say_hello(self):
