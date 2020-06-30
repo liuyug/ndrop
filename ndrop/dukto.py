@@ -382,6 +382,7 @@ class DuktoServer(Transport):
         except Exception as err:
             if err.errno != 101:
                 logger.error('[Dukto]send to "%s" error: %s' % (broadcast, err))
+        logger.info('Delay {}s after UDP broadcast'.format(self.delay_after_udp_broadcast))
         time.sleep(self.delay_after_udp_broadcast)
         sock.close()
 
