@@ -288,6 +288,7 @@ class DuktoServer(Transport):
     _node = None
     _nodes = None
     _loop_hello = True
+    _delay_after_udp_broadcast = 3
 
     def __init__(self, owner, addr, ssl_ck=None):
         if ssl_ck:
@@ -333,7 +334,7 @@ class DuktoServer(Transport):
         ).start()
 
         logger.info('My Node: %s' % self.format_node())
-        if self._tcp_server.server_address[0] == '0.0.0.0':
+        if len(self._ip_addrs) > 1:
             logger.info('[Dukto] listen on %s:%s(tcp):%s(udp) - bind on %s' % (
                 self._tcp_server.server_address[0], self._tcp_server.server_address[1],
                 self._udp_server.server_address[1],
@@ -381,7 +382,7 @@ class DuktoServer(Transport):
         except Exception as err:
             if err.errno != 101:
                 logger.error('[Dukto]send to "%s" error: %s' % (broadcast, err))
-
+        time.sleep(self._delay_after_udp_broadcast)
         sock.close()
 
     def say_hello(self, dest):
