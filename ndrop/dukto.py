@@ -187,7 +187,10 @@ class DuktoPacket():
                     return
                 value = data[:pos]
                 del data[:pos + 1]
-                self._filename = value.decode('utf-8')
+                if sys.platform == 'win32':
+                    self._filename = value.decode('utf-8').replace('/', '\\')
+                else:
+                    self._filename = value.decode('utf-8').replace('\\', '/')
                 self._status = STATUS['filesize']
             elif self._status == STATUS['filesize']:
                 if len(data) < 8:
