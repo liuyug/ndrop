@@ -35,12 +35,10 @@ class GUIProgressBar(ttk.Progressbar):
     def close(self):
         self.destroy()
         logger.info('done')
-        self.parent.status.set('done')
+        self.parent.finish()
 
 
 class GUINetDropServer(NetDropServer):
-    progress = None
-
     def __init__(self, parent, *args):
         self.parent = parent
         super().__init__(*args)
@@ -68,14 +66,14 @@ class GUINetDropClient(NetDropClient):
         self.parent = parent
         cert = None
         key = None
-        super().__init__(parent._node['ip'], parent._node['mode'], ssl_ck=(cert, key))
+        super().__init__(parent._node['ip'], parent._node['mode'].lower(), ssl_ck=(cert, key))
 
     def init_bar(self, max_value):
         progress = GUIProgressBar(
             self.parent, orient=tk.HORIZONTAL,
             maximum=max_value,
             mode='determinate')
-        progress.grid(row=0, column=0, columnspan=2, sticky='ews')
+        progress.grid(row=1, column=1, sticky='ew')
         progress.lift()
         return progress
 
@@ -161,6 +159,12 @@ class ScrolledWindow(tk.Frame):
     def _configure_window(self, event):
         size = (self.scrollwindow.winfo_reqwidth(), self.scrollwindow.winfo_reqheight())
         self.canv.config(scrollregion='0 0 %s %s' % size)
+        if self.scrollwindow.winfo_reqwidth() != self.canv.winfo_width():
+            # update the canvas's width to fit the inner frame
+            self.canv.config(width=self.scrollwindow.winfo_reqwidth())
+        if self.scrollwindow.winfo_reqheight() != self.canv.winfo_height():
+            # update the canvas's width to fit the inner frame
+            self.canv.config(height=self.scrollwindow.winfo_reqheight())
 
 
 class Client(tk.Frame):
@@ -183,86 +187,98 @@ class Client(tk.Frame):
         super().__init__(parent, *args, **kwargs)
         self.parent = parent
         self._node = node
-        self.cur_images = {}
-        self.text = f'{node.get("user")}\n@{node["name"]}'
+        bg_color = 'white'
 
-        if 'client' not in self.cur_images:
-            back = Image.open(self.OS_IMAGES['back'])
-            fore = Image.open(self.OS_IMAGES[node['operating_system']])
-            image = Image.new("RGBA", (64, 64))
-            image.alpha_composite(back)
-            image.alpha_composite(fore)
+        # self.configure(background=bg_color)
 
-            image = ImageTk.PhotoImage(image)
-            self.cur_images['client'] = image
-        else:
-            image = self.cur_images['client']
+        back = Image.open(self.OS_IMAGES['back'])
+        os_image = self.OS_IMAGES.get(node['operating_system']) or self.OS_IMAGES['unknown']
+        fore = Image.open(os_image)
+        image = Image.new("RGBA", (64, 64))
+        image.alpha_composite(back)
+        image.alpha_composite(fore)
+        self.image = ImageTk.PhotoImage(image)
 
-        label_image = tk.Label(self, image=image)
+        label_image = tk.Label(self, image=self.image, bg=bg_color)
         label_image.grid(row=0, column=0, rowspan=2, sticky='w')
 
-        label_text = tk.Label(self, text=self.text, anchor='w', bg='white', justify=tk.LEFT)
+        if node['mode'] == '?':
+            self.text = f'{node.get("user")}\n@{node["name"]}'
+        else:
+            self.text = f'{node.get("mode")}\n@{node["name"]}'
+        label_text = tk.Label(self, text=self.text, anchor='w', bg=bg_color, justify=tk.LEFT)
         label_text.grid(row=0, column=1, sticky='ew')
+
         self.status = tk.StringVar()
-        self.status.set('ready')
-        label_status = tk.Label(self, textvariable=self.status, anchor='w', justify=tk.LEFT)
+        if self._node['ip'] == '?':
+            self.status.set('ready')
+        else:
+            self.status.set(f'{self._node["ip"]} - ready')
+        label_status = tk.Label(self, textvariable=self.status, anchor='w', bg=bg_color, justify=tk.LEFT)
         label_status.grid(row=1, column=1, sticky='ew')
 
         self.rowconfigure(0, weight=1)
         self.columnconfigure(1, weight=2)
 
-        # event_widgets = [self, label_image, label_text]
+        dnd_types = [tkdnd.DND_FILES, tkdnd.DND_TEXT]
+        # dnd_types = self.platform_independent_types(tkdnd.DND_FILES, tkdnd.DND_TEXT)
+        # dnd_types = self.platform_specific_types(tkdnd.DND_FILES, tkdnd.DND_TEXT)
         event_widgets = [self, label_image, label_text, label_status]
         for widget in event_widgets:
             widget.bind('<Button-1>', self.click)
-            widget.drop_target_register(tkdnd.DND_FILES, tkdnd.DND_TEXT)
+            widget.drop_target_register(*dnd_types)
             widget.dnd_bind('<<DropEnter>>', self.drop_enter)
-            widget.dnd_bind('<<Drop>>', self.drop)
+            widget.dnd_bind('<<DropPosition>>', self.drop_position)
+            widget.dnd_bind('<<Drop:DND_Files>>', self.drop_files)
+            widget.dnd_bind('<<Drop:DND_Text>>', self.drop_text)
         self.send_count = -1
 
+    def __str__(self):
+        return '%(mode)s@%(name)s(%(ip)s)' % self._node
+
     def click(self, event):
-        print('click', self.text)
-        return
-        if self.send_count >= 0:
-            if self.send_count < self.send_max:
-                self.send_count += 1
-                # self.progress['value'] = self.send_count
-                self.progress.step()
-            else:
-                self.send_count = -1
-                self.progress.destroy()
+        logger.info(self)
+
+    def drop_position(self, event):
+        if self._node['ip'] == '?':
+            return tkdnd.REFUSE_DROP
+        else:
+            return event.action
 
     def drop_enter(self, event):
         event.widget.focus_force()
         return event.action
 
-    def drop(self, event):
+    def drop_text(self, event):
         if event.data:
-            drop_files = self.drop_split(event.data)
-            self.send_count = 0
-            self.send_max = len(drop_files)
+            self.send_text(event.data)
+            return tkdnd.COPY
+
+    def drop_files(self, event):
+        if event.data:
+            drop_files = self.tk.splitlist(event.data)
             self.send_files(drop_files)
-        return event.action
+            return tkdnd.COPY
 
-    def drop_split(self, data):
-        d_list = []
-        sep = ' '
-        for d in data.split(sep):
-            if d.startswith('{'):
-                d_list.append(d[1:])
-            elif d.endswith('}'):
-                d_list[-1] += (sep + d[:-1])
-            else:
-                d_list.append(d)
-        return d_list
-
-    def receive_files(self):
-        print('receive')
+    def send_text(self, text):
+        agent = GUINetDropClient(self)
+        threading.Thread(
+            name='Ndrop client',
+            target=agent.send_text,
+            args=(text, ),
+        ).start()
 
     def send_files(self, files):
-        client = GUINetDropClient(self)
-        client.send_files(files)
-        # print('send', self.text, files)
+        agent = GUINetDropClient(self)
+        threading.Thread(
+            name='Ndrop client',
+            target=agent.send_files,
+            args=(files, ),
+        ).start()
+
+    def finish(self):
+        self.status.set(f'{self._node["mode"]} - done')
+        self.agent = None
 
 
 def bind_tree(widget, event, callback):
@@ -277,32 +293,35 @@ class GuiApp(tkdnd.Tk):
     def __init__(self, *args):
         super().__init__(*args)
         self.title = 'NDrop'
-        self.geometry('280x360')
+        self.geometry('320x360')
         self.queue = queue.SimpleQueue()
+
+        uname = platform.uname()
+        node = {}
+        node['user'] = 'You'
+        node['name'] = uname.node
+        node['operating_system'] = uname.system.lower()
+        node['mode'] = '?'
+        node['ip'] = '?'
+        self._me = Client(self, node)
+        self._me.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
+
+        sep = ttk.Separator(self)
+        sep.grid(row=1, column=0, sticky='ew', pady=0, padx=40)
 
         frame = ScrolledWindow(self, xbar=True, ybar=True)
         frame.grid(sticky='ewns')
         self.frame = frame.scrollwindow
 
-        uname = platform.uname()
-        node = {}
-        node['user'] = '(You)'
-        node['name'] = uname.node
-        node['operating_system'] = uname.system.lower()
-        self._me = Client(self.frame, node)
-        self._me.grid(row=0, column=0, sticky='ew', padx=10, pady=5)
-
-        sep = ttk.Separator(self.frame)
-        sep.grid(row=1, column=0, sticky='ew', pady=5, padx=40)
-
         node['user'] = 'IP connection'
         node['name'] = 'Send data to a remote device.'
-        node['operating_system'] = 'ip'
+        node['operating_system'] = '?'
+        node['mode'] = '?'
+        node['ip'] = '?'
         client = Client(self.frame, node)
-        pad = (10, 5)
-        client.grid(sticky='ew', padx=pad[0], pady=pad[1])
+        client.grid(sticky='ew', padx=10, pady=5)
 
-        self.rowconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
         self.columnconfigure(0, weight=1)
 
         self.bind('<<queue_event>>', self.queue_handler)
