@@ -28,6 +28,7 @@ setup(
     entry_points={
         'console_scripts': [
             '%s = ndrop.__main__:run' % about.name,
+            '%stk = ndrop.__main_tk__:run' % about.name,
         ],
     },
     install_requires=requirements,

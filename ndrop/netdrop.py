@@ -155,6 +155,12 @@ class NetDropServer(NetDrop):
                 })
         return nodes
 
+    def add_node(self, node):
+        logger.info('Online : [%(mode)s] %(ip)s:%(port)s - %(long_name)s' % node)
+
+    def remove_node(self, node):
+        logger.info('Offline : [%(mode)s] %(ip)s:%(port)s - %(long_name)s' % node)
+
 
 class NetDropClient(NetDrop):
     _name = 'NdropClient'

@@ -415,18 +415,19 @@ class DuktoServer(Transport):
         if ip not in self._nodes:
             info = signature.split(' ')
             self._nodes[ip] = {
+                'ip': ip,
                 'port': port,
                 'user': info[0],
                 'name': info[2],
-                'operating_system': info[3].strip('()'),
+                'operating_system': info[3].strip('()').lower(),
+                'mode': self._name,
             }
-            logger.info('Online : [Dukto] %s:%s - %s' % (
-                ip, port, self.format_node(self._nodes[ip])))
+            self._nodes[ip]['long_name'] = self.format_node(self._nodes[ip])
+            self._owner.add_node(self._nodes[ip])
 
     def remove_node(self, ip):
         if ip in self._nodes:
-            logger.info('Offline: [Dukto] %s:%s - %s' % (
-                ip, self._nodes[ip]['port'], self.format_node(self._nodes[ip])))
+            self._owner.remove_node(self._nodes[ip])
             del self._nodes[ip]
 
     def get_signature(self, node=None):
