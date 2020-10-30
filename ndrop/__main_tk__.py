@@ -135,11 +135,9 @@ class ScrolledWindow(tk.Frame):
         self.scrollwindow.bind('<Configure>', self._configure_window)
         self.scrollwindow.bind('<Enter>', self._bound_to_mousewheel)
         self.scrollwindow.bind('<Leave>', self._unbound_to_mousewheel)
+        self.scrollwindow.columnconfigure(0, weight=1)
 
-        self.canv.create_window(0, 0, window=self.scrollwindow, anchor='nw')
-
-        # self.scrollwindow.columnconfigure(0, weight=1)
-        # self.scrollwindow.grid(sticky='ew')
+        self.item_window = self.canv.create_window(0, 0, window=self.scrollwindow, anchor='nw')
 
         if ybar:
             self.yscrlbr.lift(self.scrollwindow)
@@ -173,23 +171,9 @@ class ScrolledWindow(tk.Frame):
     def _configure_window(self, event):
         # canvas will expand on both direction
         self.canv.configure(scrollregion=self.canv.bbox("all"))
-        # size = (self.scrollwindow.winfo_reqwidth(), self.scrollwindow.winfo_reqheight())
-        # self.canv.config(scrollregion='0 0 %s %s' % size)
-        # if self.scrollwindow.winfo_reqwidth() != self.canv.winfo_width():
-        #     # update the canvas's width to fit the inner frame
-        #     self.canv.config(width=self.scrollwindow.winfo_reqwidth())
-        # if self.scrollwindow.winfo_reqheight() != self.canv.winfo_height():
-        #     # update the canvas's width to fit the inner frame
-        #     self.canv.config(height=self.scrollwindow.winfo_reqheight())
 
     def _configure_canvas(self, event):
-        self.scrollwindow.config(width=event.width)
-        return
-        size = (self.canv.winfo_reqwidth(), self.canv.winfo_reqheight())
-        print(size)
-        if self.scrollwindow.winfo_width() != self.canv.winfo_reqwidth():
-            # update the canvas's width to fit the inner frame
-            self.scrollwindow.config(width=self.canv.winfo_reqwidth())
+        self.canv.itemconfig(self.item_window, width=event.width)
 
 
 class Client(tk.Frame):
