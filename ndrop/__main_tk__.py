@@ -113,7 +113,7 @@ class ScrolledWindow(tk.Frame):
         # placing a canvas into frame
         self.canv.columnconfigure(0, weight=1)
         self.canv.grid(column=0, row=0, sticky='nsew')
-        # self.canv.bind('<Configure>', self._configure_canvas)
+        self.canv.bind('<Configure>', self._configure_canvas)
 
         # creating a scrollbars
         if xbar:
@@ -183,6 +183,8 @@ class ScrolledWindow(tk.Frame):
         #     self.canv.config(height=self.scrollwindow.winfo_reqheight())
 
     def _configure_canvas(self, event):
+        self.scrollwindow.config(width=event.width)
+        return
         size = (self.canv.winfo_reqwidth(), self.canv.winfo_reqheight())
         print(size)
         if self.scrollwindow.winfo_width() != self.canv.winfo_reqwidth():
