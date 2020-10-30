@@ -113,6 +113,7 @@ class ScrolledWindow(tk.Frame):
         # placing a canvas into frame
         self.canv.columnconfigure(0, weight=1)
         self.canv.grid(column=0, row=0, sticky='nsew')
+        # self.canv.bind('<Configure>', self._configure_canvas)
 
         # creating a scrollbars
         if xbar:
@@ -137,7 +138,7 @@ class ScrolledWindow(tk.Frame):
 
         self.canv.create_window(0, 0, window=self.scrollwindow, anchor='nw')
 
-        self.scrollwindow.columnconfigure(0, weight=1)
+        # self.scrollwindow.columnconfigure(0, weight=1)
         # self.scrollwindow.grid(sticky='ew')
 
         if ybar:
@@ -148,23 +149,45 @@ class ScrolledWindow(tk.Frame):
         self.columnconfigure(0, weight=1)
 
     def _bound_to_mousewheel(self, event):
-        self.canv.bind_all("<MouseWheel>", self._on_mousewheel)
+        if sys.platform == 'linux':
+            self.canv.bind_all("<Button-4>", self._on_mousewheel)
+            self.canv.bind_all("<Button-5>", self._on_mousewheel)
+        else:
+            self.canv.bind_all("<MouseWheel>", self._on_mousewheel)
 
     def _unbound_to_mousewheel(self, event):
         self.canv.unbind_all("<MouseWheel>")
 
     def _on_mousewheel(self, event):
-        self.canv.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        if sys.platform == 'darwin':
+            delta = event.delta
+        elif sys.platform == 'linux':
+            if event.num == 5:
+                delta = 1
+            if event.num == 4:
+                delta = -1
+        else:
+            delta = int(-1 * (event.delta / 120))
+        self.canv.yview_scroll(delta, "units")
 
     def _configure_window(self, event):
-        size = (self.scrollwindow.winfo_reqwidth(), self.scrollwindow.winfo_reqheight())
-        self.canv.config(scrollregion='0 0 %s %s' % size)
-        if self.scrollwindow.winfo_reqwidth() != self.canv.winfo_width():
+        # canvas will expand on both direction
+        self.canv.configure(scrollregion=self.canv.bbox("all"))
+        # size = (self.scrollwindow.winfo_reqwidth(), self.scrollwindow.winfo_reqheight())
+        # self.canv.config(scrollregion='0 0 %s %s' % size)
+        # if self.scrollwindow.winfo_reqwidth() != self.canv.winfo_width():
+        #     # update the canvas's width to fit the inner frame
+        #     self.canv.config(width=self.scrollwindow.winfo_reqwidth())
+        # if self.scrollwindow.winfo_reqheight() != self.canv.winfo_height():
+        #     # update the canvas's width to fit the inner frame
+        #     self.canv.config(height=self.scrollwindow.winfo_reqheight())
+
+    def _configure_canvas(self, event):
+        size = (self.canv.winfo_reqwidth(), self.canv.winfo_reqheight())
+        print(size)
+        if self.scrollwindow.winfo_width() != self.canv.winfo_reqwidth():
             # update the canvas's width to fit the inner frame
-            self.canv.config(width=self.scrollwindow.winfo_reqwidth())
-        if self.scrollwindow.winfo_reqheight() != self.canv.winfo_height():
-            # update the canvas's width to fit the inner frame
-            self.canv.config(height=self.scrollwindow.winfo_reqheight())
+            self.scrollwindow.config(width=self.canv.winfo_reqwidth())
 
 
 class Client(tk.Frame):
@@ -306,9 +329,9 @@ class GuiApp(tkdnd.Tk):
         self._me.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
 
         sep = ttk.Separator(self)
-        sep.grid(row=1, column=0, sticky='ew', pady=0, padx=40)
+        sep.grid(row=1, column=0, sticky='ew', padx=40, pady=0)
 
-        frame = ScrolledWindow(self, xbar=True, ybar=True)
+        frame = ScrolledWindow(self, xbar=False, ybar=True)
         frame.grid(sticky='ewns')
         self.frame = frame.scrollwindow
 
