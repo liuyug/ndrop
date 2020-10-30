@@ -423,9 +423,12 @@ class NitroshareServer(Transport):
     def add_node(self, ip, node):
         if ip not in self._nodes:
             self._nodes[ip] = node
+            self._nodes[ip]['ip'] = ip
             self._nodes[ip]['last_ping'] = datetime.datetime.now()
-            logger.info('Online : [NitroShare] %s:%s - %s' % (
-                ip, node['port'], self.format_node(self._nodes[ip])))
+            self._nodes[ip]['user'] = self._name
+            self._nodes[ip]['mode'] = self._name
+            self._nodes[ip]['long_name'] = self.format_node(self._nodes[ip])
+            self._owner.add_node(self._nodes[ip])
 
     def update_node(self, ip, node):
         now = datetime.datetime.now()
@@ -443,9 +446,11 @@ class NitroshareServer(Transport):
 
     def remove_node(self, ip):
         if ip in self._nodes:
-            node = self._nodes[ip]
-            logger.info('Offline: [NitroShare] %s:%s - %s' % (
-                ip, node['port'], self.format_node(node)))
+            self._nodes[ip]['ip'] = ip
+            self._nodes[ip]['user'] = self._name
+            self._nodes[ip]['mode'] = self._name
+            self._nodes[ip]['long_name'] = self.format_node(self._nodes[ip])
+            self._owner.remove_node(self._nodes[ip])
             del self._nodes[ip]
 
     def get_signature(self, node=None):
@@ -455,7 +460,7 @@ class NitroshareServer(Transport):
 
     def format_node(self, node=None):
         node = node or self._node
-        return '@%s(%s)' % (node['name'], get_system_symbol(node['operating_system']))
+        return '%s@%s(%s)' % (self._name, node['name'], get_system_symbol(node['operating_system']))
 
 
 class NitroshareClient(Transport):
