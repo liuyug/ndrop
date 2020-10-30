@@ -333,7 +333,7 @@ class GuiApp(tkdnd.Tk):
         unknown_node = {}
         unknown_node['user'] = 'IP connection'
         unknown_node['name'] = 'Send data to a remote device.'
-        unknown_node['operating_system'] = '?'
+        unknown_node['operating_system'] = 'ip'
         unknown_node['mode'] = '?'
         unknown_node['ip'] = '?'
         self.unknown_client = Client(self.frame, unknown_node)
