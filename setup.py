@@ -24,7 +24,17 @@ setup(
     long_description=long_description,
     python_requires='>=3.6',
     platforms=['noarch'],
-    packages=find_packages(exclude=['doc']),
+    packages=['ndrop', 'tkinterdnd2'],
+    package_data={
+        'ndrop': [
+            'image/*.*',
+        ],
+        'tkinterdnd2': [
+            'tkdnd/linux64/*.*',
+            'tkdnd/osx64/*.*',
+            'tkdnd/win64/*.*',
+        ]
+    },
     entry_points={
         'console_scripts': [
             '%s = ndrop.__main__:run' % about.name,
