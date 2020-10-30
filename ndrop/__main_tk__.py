@@ -45,7 +45,7 @@ class GUINetDropServer(NetDropServer):
 
     def init_bar(self, max_value):
         progress = GUIProgressBar(
-            self.parent._me, orient=tk.HORIZONTAL,
+            self.parent.owner, orient=tk.HORIZONTAL,
             maximum=max_value,
             mode='determinate')
         progress.grid(row=1, column=1, sticky='w')
@@ -102,14 +102,17 @@ class ScrolledWindow(tk.Frame):
         canv_w - width of canvas
         canv_h - height of canvas
 
-       """
+        """
         super().__init__(parent, *args, **kwargs)
         # creating a canvas
         self.canv = tk.Canvas(self)
         self.canv.config(
             relief='flat',
+            takefocus=0,
+            borderwidth=0,
+            highlightthickness=0,
             width=10,
-            heigh=10, bd=2)
+            heigh=10)
         # placing a canvas into frame
         self.canv.columnconfigure(0, weight=1)
         self.canv.grid(column=0, row=0, sticky='nsew')
@@ -147,25 +150,30 @@ class ScrolledWindow(tk.Frame):
         self.columnconfigure(0, weight=1)
 
     def _bound_to_mousewheel(self, event):
-        if sys.platform == 'linux':
-            self.canv.bind_all("<Button-4>", self._on_mousewheel)
-            self.canv.bind_all("<Button-5>", self._on_mousewheel)
-        else:
-            self.canv.bind_all("<MouseWheel>", self._on_mousewheel)
+        # windows, macos
+        self.canv.bind_all("<MouseWheel>", self._on_mousewheel)
+        # linux
+        self.canv.bind_all("<Button-4>", self._on_mousewheel)
+        self.canv.bind_all("<Button-5>", self._on_mousewheel)
 
     def _unbound_to_mousewheel(self, event):
         self.canv.unbind_all("<MouseWheel>")
+        self.canv.unbind_all("<Button-4>")
+        self.canv.unbind_all("<Button-5>")
 
     def _on_mousewheel(self, event):
         if sys.platform == 'darwin':
-            delta = event.delta
-        elif sys.platform == 'linux':
-            if event.num == 5:
-                delta = 1
-            if event.num == 4:
-                delta = -1
+            # macos
+            delta = -1 * event.delta
+        elif event.num == 5:
+            # linux up
+            delta = 1
+        elif event.num == 4:
+            # linux down
+            delta = -1
         else:
-            delta = int(-1 * (event.delta / 120))
+            # windows
+            delta = -1 * (event.delta // 120)
         self.canv.yview_scroll(delta, "units")
 
     def _configure_window(self, event):
@@ -296,7 +304,8 @@ def bind_tree(widget, event, callback):
 
 
 class GuiApp(tkdnd.Tk):
-    _me = None
+    owner = None
+    unknown_client = None
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -305,14 +314,14 @@ class GuiApp(tkdnd.Tk):
         self.queue = queue.SimpleQueue()
 
         uname = platform.uname()
-        node = {}
-        node['user'] = 'You'
-        node['name'] = uname.node
-        node['operating_system'] = uname.system.lower()
-        node['mode'] = '?'
-        node['ip'] = '?'
-        self._me = Client(self, node)
-        self._me.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
+        owner_node = {}
+        owner_node['user'] = 'You'
+        owner_node['name'] = uname.node
+        owner_node['operating_system'] = uname.system.lower()
+        owner_node['mode'] = '?'
+        owner_node['ip'] = '?'
+        self.owner = Client(self, owner_node)
+        self.owner.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
 
         sep = ttk.Separator(self)
         sep.grid(row=1, column=0, sticky='ew', padx=40, pady=0)
@@ -321,13 +330,14 @@ class GuiApp(tkdnd.Tk):
         frame.grid(sticky='ewns')
         self.frame = frame.scrollwindow
 
-        node['user'] = 'IP connection'
-        node['name'] = 'Send data to a remote device.'
-        node['operating_system'] = '?'
-        node['mode'] = '?'
-        node['ip'] = '?'
-        client = Client(self.frame, node)
-        client.grid(sticky='ew', padx=10, pady=5)
+        unknown_node = {}
+        unknown_node['user'] = 'IP connection'
+        unknown_node['name'] = 'Send data to a remote device.'
+        unknown_node['operating_system'] = '?'
+        unknown_node['mode'] = '?'
+        unknown_node['ip'] = '?'
+        self.unknown_client = Client(self.frame, unknown_node)
+        self.unknown_client.grid(sticky='ew', padx=10, pady=5)
 
         self.rowconfigure(2, weight=1)
         self.columnconfigure(0, weight=1)
