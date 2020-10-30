@@ -398,7 +398,7 @@ class NitroshareServer(Transport):
             for broadcast in self._broadcasts:
                 num = self._broadcast_sock.sendto(data, (broadcast, port))
                 assert num == len(data), (broadcast, port, num, len(data))
-        except (socket.herror, socket.gaierror, socket.timeout) as err:
+        except (socket.herror, socket.gaierror, socket.timeout, OSError) as err:
             if err.errno == 101:  # Network is unreachable
                 pass
             else:
