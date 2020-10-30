@@ -1,9 +1,9 @@
 
 import logging
 import socket
+import ipaddress
 
-import netifaces
-
+import ifaddr
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,32 @@ def drop_ip(ip_addr):
 
 
 def get_broadcast_address(ip_addr=None):
+    ip_addrs = []
+    broadcasts = []
+    for adapter in ifaddr.get_adapters():
+        for a_ip in adapter.ips:
+            if a_ip.is_IPv4:
+                ip = ipaddress.ip_address(a_ip.ip)
+                if ip.is_loopback or ip.is_link_local:
+                    continue
+                mask = 0xffffffff << (32 - a_ip.network_prefix)
+                net_addr_int = int.from_bytes(ip.packed, 'big') & mask
+                net_ip = ipaddress.ip_network((net_addr_int, a_ip.network_prefix))
+
+                ip_addrs.append(str(ip))
+                broadcasts.append(str(net_ip.broadcast_address))
+    if ip_addr and ip_addr != '0.0.0.0':
+        if ip_addr in ip_addrs:
+            idx = ip_addrs.index(ip_addr)
+            return [ip_addr], [broadcasts[idx]]
+        else:
+            return [], []
+
+    return ip_addrs, broadcasts
+
+
+def get_broadcast_address2(ip_addr=None):
+    import netifaces
     ip_addrs = []
     broadcasts = []
     if not ip_addr or ip_addr == '0.0.0.0':
