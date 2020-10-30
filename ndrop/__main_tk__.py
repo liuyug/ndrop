@@ -15,8 +15,8 @@ import tkinter as tk
 import tkinter.ttk as ttk
 
 
-from ndrop import about
-from ndrop.netdrop import NetDropServer, NetDropClient
+from . import about
+from .netdrop import NetDropServer, NetDropClient
 
 logger = logging.getLogger(__name__)
 
@@ -168,18 +168,19 @@ class ScrolledWindow(tk.Frame):
 
 
 class Client(tk.Frame):
+    image_dir = os.path.join(os.path.dirname(__file__), 'image')
     OS_IMAGES = {
-        'back': os.path.join('image', 'BackTile.png'),
-        'pc': os.path.join('image', 'PcLogo.png'),
-        'android': os.path.join('image', 'AndroidLogo.png'),
-        'apple': os.path.join('image', 'AppleLogo.png'),
-        'blackberry': os.path.join('image', 'BlackberryLogo.png'),
-        'ip': os.path.join('image', 'IpLogo.png'),
-        'linux': os.path.join('image', 'LinuxLogo.png'),
-        'smartphone': os.path.join('image', 'SmartphoneLogo.png'),
-        'unknown': os.path.join('image', 'UnknownLogo.png'),
-        'windows': os.path.join('image', 'WindowsLogo.png'),
-        'windowsphone': os.path.join('image', 'WindowsPhoneLogo.png'),
+        'back': os.path.join(image_dir, 'BackTile.png'),
+        'pc': os.path.join(image_dir, 'PcLogo.png'),
+        'android': os.path.join(image_dir, 'AndroidLogo.png'),
+        'apple': os.path.join(image_dir, 'AppleLogo.png'),
+        'blackberry': os.path.join(image_dir, 'BlackberryLogo.png'),
+        'ip': os.path.join(image_dir, 'IpLogo.png'),
+        'linux': os.path.join(image_dir, 'LinuxLogo.png'),
+        'smartphone': os.path.join(image_dir, 'SmartphoneLogo.png'),
+        'unknown': os.path.join(image_dir, 'UnknownLogo.png'),
+        'windows': os.path.join(image_dir, 'WindowsLogo.png'),
+        'windowsphone': os.path.join(image_dir, 'WindowsPhoneLogo.png'),
     }
     _node = None
 
@@ -221,8 +222,6 @@ class Client(tk.Frame):
         self.columnconfigure(1, weight=2)
 
         dnd_types = [tkdnd.DND_FILES, tkdnd.DND_TEXT]
-        # dnd_types = self.platform_independent_types(tkdnd.DND_FILES, tkdnd.DND_TEXT)
-        # dnd_types = self.platform_specific_types(tkdnd.DND_FILES, tkdnd.DND_TEXT)
         event_widgets = [self, label_image, label_text, label_status]
         for widget in event_widgets:
             widget.bind('<Button-1>', self.click)
@@ -292,7 +291,7 @@ class GuiApp(tkdnd.Tk):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.title = 'NDrop'
+        self.title('%s v%s' % (about.name.capitalize(), about.version))
         self.geometry('320x360')
         self.queue = queue.SimpleQueue()
 
@@ -357,7 +356,7 @@ class GuiApp(tkdnd.Tk):
         self.mainloop()
 
 
-def main():
+def run():
     print(about.banner)
     app_logger = logging.getLogger(__name__.rpartition('.')[0])
     app_logger.setLevel(logging.INFO)
@@ -372,4 +371,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    run()
