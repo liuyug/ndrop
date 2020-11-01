@@ -315,6 +315,13 @@ class GuiApp(tkdnd.Tk):
     def __init__(self, *args):
         super().__init__(*args)
         self.title('%s v%s' % (about.name.capitalize(), about.version))
+
+        image_dir = os.path.join(os.path.dirname(__file__), 'image')
+        icon_path = os.path.join(image_dir, 'ndrop.png')
+        image = Image.open(icon_path)
+        self.image = ImageTk.PhotoImage(image)
+        self.iconphoto(False, self.image)
+
         self.geometry('320x360')
         self.queue = queue.SimpleQueue()
 

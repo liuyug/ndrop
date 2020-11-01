@@ -24,9 +24,11 @@ echo ndrop.__main_tk__.run() >> %scriptk%
 pyinstaller ^
 --onefile ^
 --name ndroptk ^
+--icon ndrop\image\ndrop.ico ^
 --hidden-import tkinterdnd2 ^
 --add-data tkinterdnd2\tkdnd\win64;tkinterdnd2\tkdnd\win64 ^
 --add-data ndrop\image;ndrop\image ^
+--windowed ^
 --noconfirm ^
 %scriptk%
 
