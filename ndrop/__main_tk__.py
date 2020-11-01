@@ -239,15 +239,20 @@ class Client(tk.Frame):
         self.columnconfigure(1, weight=2)
 
         dnd_types = [tkdnd.DND_FILES, tkdnd.DND_TEXT]
-        event_widgets = [self, label_image, label_text, label_status]
-        for widget in event_widgets:
+
+        for widget in [self] + list(self.children.values()):
             widget.bind('<Button-1>', self.click)
             widget.drop_target_register(*dnd_types)
             widget.dnd_bind('<<DropEnter>>', self.drop_enter)
             widget.dnd_bind('<<DropPosition>>', self.drop_position)
             widget.dnd_bind('<<Drop:DND_Files>>', self.drop_files)
             widget.dnd_bind('<<Drop:DND_Text>>', self.drop_text)
-        self.send_count = -1
+
+    def bind_tree(self, widget, event, callback):
+        widget.bind(event, callback)
+
+        for child in widget.children.values():
+            bind_tree(child, event, callback)
 
     def __str__(self):
         return '%(mode)s@%(name)s(%(ip)s)' % self._node
