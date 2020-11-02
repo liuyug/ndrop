@@ -7,6 +7,7 @@ import platform
 import re
 import threading
 import queue
+import webbrowser
 import logging
 
 from PIL import Image, ImageTk
@@ -17,6 +18,7 @@ import tkinter.ttk as ttk
 from . import hdpitk
 from . import about
 from .netdrop import NetDropServer, NetDropClient
+from .transport import get_broadcast_address
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +78,56 @@ class GUINetDropClient(NetDropClient):
         progress.grid(row=1, column=1, sticky='ew')
         progress.lift()
         return progress
+
+
+IMAGES = {
+    'back': 'BackTile.png',
+    'pc': 'PcLogo.png',
+    'android': 'AndroidLogo.png',
+    'apple': 'AppleLogo.png',
+    'blackberry': 'BlackberryLogo.png',
+    'ip': 'IpLogo.png',
+    'linux': 'LinuxLogo.png',
+    'smartphone': 'SmartphoneLogo.png',
+    'unknown': 'UnknownLogo.png',
+    'windows': 'WindowsLogo.png',
+    'windowsphone': 'WindowsPhoneLogo.png',
+    'config': 'ConfigIcon.png',
+    'openfolder': 'OpenFolderIcon.png',
+}
+
+
+class NdropImage():
+    @classmethod
+    def get_os_image(cls, name):
+        image_dir = os.path.join(os.path.dirname(__file__), 'image')
+
+        back_path = os.path.join(image_dir, IMAGES['back'])
+        back_im = Image.open(back_path)
+
+        fore_path = os.path.join(
+            image_dir,
+            IMAGES.get(name) or IMAGES['unknown']
+        )
+        fore_im = Image.open(fore_path)
+
+        image = Image.new("RGBA", fore_im.size)
+        image.alpha_composite(back_im.resize(fore_im.size))
+        image.alpha_composite(fore_im)
+        return ImageTk.PhotoImage(image)
+
+    @classmethod
+    def get_image(cls, name, background=None):
+        image_dir = os.path.join(os.path.dirname(__file__), 'image')
+
+        fore_path = os.path.join(image_dir, IMAGES[name])
+        fore_im = Image.open(fore_path)
+
+        background = background or 'white'
+
+        image = Image.new("RGBA", fore_im.size, color=background)
+        image.alpha_composite(fore_im)
+        return ImageTk.PhotoImage(image)
 
 
 class ScrolledWindow(ttk.Frame):
@@ -185,20 +237,6 @@ class ScrolledWindow(ttk.Frame):
 
 
 class Client(ttk.Frame):
-    image_dir = os.path.join(os.path.dirname(__file__), 'image')
-    OS_IMAGES = {
-        'back': os.path.join(image_dir, 'BackTile.png'),
-        'pc': os.path.join(image_dir, 'PcLogo.png'),
-        'android': os.path.join(image_dir, 'AndroidLogo.png'),
-        'apple': os.path.join(image_dir, 'AppleLogo.png'),
-        'blackberry': os.path.join(image_dir, 'BlackberryLogo.png'),
-        'ip': os.path.join(image_dir, 'IpLogo.png'),
-        'linux': os.path.join(image_dir, 'LinuxLogo.png'),
-        'smartphone': os.path.join(image_dir, 'SmartphoneLogo.png'),
-        'unknown': os.path.join(image_dir, 'UnknownLogo.png'),
-        'windows': os.path.join(image_dir, 'WindowsLogo.png'),
-        'windowsphone': os.path.join(image_dir, 'WindowsPhoneLogo.png'),
-    }
     _node = None
 
     def __init__(self, parent, node, *args, **kwargs):
@@ -206,13 +244,7 @@ class Client(ttk.Frame):
         self.parent = parent
         self._node = node
 
-        back = Image.open(self.OS_IMAGES['back'])
-        os_image = self.OS_IMAGES.get(node['operating_system']) or self.OS_IMAGES['unknown']
-        fore = Image.open(os_image)
-        image = Image.new("RGBA", (64, 64))
-        image.alpha_composite(back)
-        image.alpha_composite(fore)
-        self.image = ImageTk.PhotoImage(image)
+        self.image = NdropImage.get_os_image(node['operating_system'])
 
         self.style = ttk.Style()
         self.style.configure('client.TLabel', background='white')
@@ -221,10 +253,12 @@ class Client(ttk.Frame):
         label_image.grid(row=0, column=0, rowspan=2, sticky='w')
 
         if node['mode'] == '?':
-            self.text = f'{node.get("user")}\n@{node["name"]}'
+            text = f'{node.get("user")}\n@{node["name"]}'
         else:
-            self.text = f'{node.get("mode")}\n@{node["name"]}'
-        label_text = ttk.Label(self, text=self.text, anchor='w', style='client.TLabel', justify=tk.LEFT)
+            text = f'{node.get("mode")}\n@{node["name"]}'
+        label_text = ttk.Label(
+            self, text=text,
+            anchor='w', style='client.TLabel', justify=tk.LEFT)
         label_text.grid(row=0, column=1, sticky='ew')
 
         self.status = tk.StringVar()
@@ -232,7 +266,9 @@ class Client(ttk.Frame):
             self.status.set('ready')
         else:
             self.status.set(f'{self._node["ip"]} - ready')
-        label_status = ttk.Label(self, textvariable=self.status, anchor='w', style='client.TLabel', justify=tk.LEFT)
+        label_status = ttk.Label(
+            self, textvariable=self.status,
+            anchor='w', style='client.TLabel', justify=tk.LEFT)
         label_status.grid(row=1, column=1, sticky='nsew')
 
         self.rowconfigure(1, weight=1)
@@ -317,21 +353,20 @@ class GuiApp(tkdnd.Tk):
         self.title('%s v%s' % (about.name.capitalize(), about.version))
 
         image_dir = os.path.join(os.path.dirname(__file__), 'image')
-        icon_path = os.path.join(image_dir, 'ndrop.png')
-        image = Image.open(icon_path)
-        self.image = ImageTk.PhotoImage(image)
-        self.iconphoto(False, self.image)
+        icon_path = os.path.join(image_dir, 'ndrop.ico')
+        self.iconphoto(True, ImageTk.PhotoImage(Image.open(icon_path)))
 
         self.geometry('320x360')
         self.queue = queue.SimpleQueue()
 
         uname = platform.uname()
+        ipaddrs, _ = get_broadcast_address()
         owner_node = {}
         owner_node['user'] = 'You'
         owner_node['name'] = uname.node
         owner_node['operating_system'] = uname.system.lower()
         owner_node['mode'] = '?'
-        owner_node['ip'] = '?'
+        owner_node['ip'] = ', '.join(ipaddrs)
         self.owner = Client(self, owner_node)
         self.owner.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
 
@@ -351,10 +386,36 @@ class GuiApp(tkdnd.Tk):
         self.unknown_client = Client(self.frame, unknown_node)
         self.unknown_client.grid(sticky='ew', padx=10, pady=5)
 
+        s = ttk.Style()
+        s.configure('footer.TFrame', background='green')
+        s.configure('footer.TLabel', background='green')
+
+        footer = ttk.Frame(self, style='footer.TFrame')
+        footer.grid(sticky='ew')
+
+        self.image_openfolder = NdropImage.get_image('openfolder', background='green')
+        label = ttk.Label(footer, image=self.image_openfolder, style='footer.TLabel')
+        label.grid(row=0, column=1, padx=10, pady=5)
+        label.bind('<Button-1>', self.open_folder)
+
+        self.image_config = NdropImage.get_image('config', background='green')
+        label = ttk.Label(footer, image=self.image_config, style='footer.TLabel')
+        label.grid(row=0, column=2, padx=10, pady=5)
+        label.bind('<Button-1>', self.show_config)
+
+        footer.columnconfigure(0, weight=1)
+        footer.columnconfigure(3, weight=1)
+
         self.rowconfigure(2, weight=1)
         self.columnconfigure(0, weight=1)
 
         self.bind('<<queue_event>>', self.queue_handler)
+
+    def open_folder(self, event):
+        webbrowser.open(self.saved_dir)
+
+    def show_config(self, event):
+        print(event.widget)
 
     def queue_handler(self, event):
         item = self.queue.get_nowait()
@@ -374,13 +435,13 @@ class GuiApp(tkdnd.Tk):
         mode = None
         cert = None
         key = None
-        saved_dir = './'
+        self.saved_dir = os.path.normpath('./')
 
-        server = GUINetDropServer(self, listen, mode, (cert, key))
-        server.saved_to(saved_dir)
+        self.server = GUINetDropServer(self, listen, mode, (cert, key))
+        self.server.saved_to(self.saved_dir)
         threading.Thread(
             name='Ndrop server',
-            target=server.wait_for_request,
+            target=self.server.wait_for_request,
             daemon=True,
         ).start()
 
