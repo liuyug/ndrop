@@ -1,3 +1,4 @@
 tqdm
 ifaddr
 pillow
+appdirs
