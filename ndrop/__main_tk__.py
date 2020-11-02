@@ -14,7 +14,12 @@ from PIL import Image, ImageTk
 import tkinterdnd2 as tkdnd
 import tkinter as tk
 import tkinter.ttk as ttk
+from tkinter.simpledialog import Dialog
+from tkinter.messagebox import showinfo
+from tkinter.filedialog import askdirectory
+import appdirs
 
+from . import init_config, save_config, gConfig
 from . import hdpitk
 from . import about
 from .netdrop import NetDropServer, NetDropClient
@@ -356,6 +361,47 @@ class Client(ttk.Frame):
         self.agent = None
 
 
+class SettingDialog(Dialog):
+    def __init__(self, parent, title, **kwargs):
+        target_dir = kwargs.get('target_dir', '')
+        self.target_dir = tk.StringVar()
+        self.target_dir.set(target_dir)
+
+        hdpi = 1 if kwargs.get('enable_hdpi') else 0
+        self.hdpi = tk.IntVar()
+        self.hdpi.set(hdpi)
+
+        super().__init__(parent, title)
+
+    def body(self, parent):
+        label = ttk.Label(parent, text='Saved folder:')
+        label.grid(row=0, sticky='w')
+
+        entry = ttk.Entry(parent, textvariable=self.target_dir, width=40)
+        entry.grid(row=1, column=0, sticky='ew')
+
+        button = ttk.Button(parent, text='Change folder')
+        button.grid(row=2, column=0, sticky='e')
+        button.bind('<Button-1>', self.change_folder)
+
+        checkbox = ttk.Checkbutton(parent, text='Enable HDPI', variable=self.hdpi)
+        checkbox.grid(row=3, column=0, sticky='ew')
+
+        parent.rowconfigure(1, weight=1)
+        parent.columnconfigure(0, weight=1)
+        parent.pack(fill=tk.BOTH)
+
+    def apply(self):
+        target_dir = self.target_dir.get()
+        hdpi = self.hdpi.get()
+        self.result = os.path.normpath(target_dir), hdpi == 1
+
+    def change_folder(self, event):
+        folder = askdirectory(initialdir=self.saved_dir.get())
+        if folder:
+            self.saved_dir.set(folder)
+
+
 def bind_tree(widget, event, callback):
     widget.bind(event, callback)
     for child in widget.children.values():
@@ -432,10 +478,21 @@ class GuiApp(tkdnd.Tk):
         self.bind('<<queue_event>>', self.queue_handler)
 
     def open_folder(self, event):
-        webbrowser.open(self.saved_dir)
+        webbrowser.open(gConfig.app['target_dir'])
 
     def show_config(self, event):
-        print(event.widget)
+        dlg = SettingDialog(
+            self, 'Settings',
+            target_dir=gConfig.app['target_dir'],
+            enable_hdpi=gConfig.app['enable_hdpi'],
+        )
+        if dlg.result:
+            target_dir, hdpi = dlg.result
+            if gConfig.app['enable_hdpi'] != hdpi:
+                showinfo('Information', 'Close and open app again to enable HDPI')
+            gConfig.app['target_dir'] = target_dir
+            gConfig.app['enable_hdpi'] = hdpi
+            save_config()
 
     def queue_handler(self, event):
         item = self.queue.get_nowait()
@@ -455,10 +512,9 @@ class GuiApp(tkdnd.Tk):
         mode = None
         cert = None
         key = None
-        self.saved_dir = os.path.normpath('./')
 
         self.server = GUINetDropServer(self, listen, mode, (cert, key))
-        self.server.saved_to(self.saved_dir)
+        self.server.saved_to(gConfig.app['target_dir'])
         threading.Thread(
             name='Ndrop server',
             target=self.server.wait_for_request,
@@ -470,6 +526,7 @@ class GuiApp(tkdnd.Tk):
 
 def run():
     print(about.banner)
+    init_config()
     app_logger = logging.getLogger(__name__.rpartition('.')[0])
     app_logger.setLevel(logging.INFO)
 
@@ -479,7 +536,8 @@ def run():
     app_logger.addHandler(handler)
 
     app = GuiApp()
-    hdpitk.MakeTkDPIAware(app)
+    if gConfig.app.get('enable_hdpi'):
+        hdpitk.MakeTkDPIAware(app)
     app.run()
 
 
