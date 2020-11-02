@@ -14,11 +14,9 @@ about = '%s v%s - written by %s <%s>' % (name.capitalize(), version, author, ema
 
 def get_system_symbol(system):
     symbols = {
-        'linux': '🐧',
-        'darwin': '🍎',
-        'windows': '',
-        # 'android': '',
-        # 'linux': '',
-        # 'apple': '',
+        'linux': 'Linux',
+        'darwin': 'Apple',
+        'windows': 'Windows',
+        'android': 'Android',
     }
     return symbols.get(system.lower(), system)

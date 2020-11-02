@@ -1,4 +1,3 @@
 tqdm
-# netifaces
 ifaddr
 pillow

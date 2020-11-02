@@ -8,7 +8,6 @@ import threading
 from . import about
 from . import hfs
 from .netdrop import NetDropServer, NetDropClient
-from .shell import NetDropShell
 
 
 logger = logging.getLogger(__name__)
@@ -107,19 +106,6 @@ def run():
 
     if args.hfs:
         hfs.start(listen, root_path=saved_dir, cert=args.cert, key=args.key)
-    elif args.shell:
-        logging.disable(sys.maxsize)
-        shell = NetDropShell()
-        server = NetDropServer(listen, mode=args.mode, ssl_ck=(args.cert, args.key))
-        server.saved_to(saved_dir)
-        threading.Thread(
-            name='Ndrop server',
-            target=server.wait_for_request,
-            daemon=True,
-        ).start()
-
-        shell._server = server
-        shell.cmdloop()
     else:
         logger.info('File Transfer Server start (Press CTRL+C to quit)')
         server = NetDropServer(listen, mode=args.mode, ssl_ck=(args.cert, args.key))
