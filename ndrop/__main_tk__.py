@@ -52,10 +52,10 @@ class GUINetDropServer(NetDropServer):
 
     def init_bar(self, max_value):
         progress = GUIProgressBar(
-            self.parent.owner, orient=ttk.HORIZONTAL,
+            self.parent.owner, orient=tk.HORIZONTAL,
             maximum=max_value,
             mode='determinate')
-        progress.grid(row=1, column=1, sticky='w')
+        progress.grid(row=1, column=1, sticky='nsew')
         progress.lift()
         return progress
 
@@ -77,10 +77,10 @@ class GUINetDropClient(NetDropClient):
 
     def init_bar(self, max_value):
         progress = GUIProgressBar(
-            self.parent, orient=ttk.HORIZONTAL,
+            self.parent, orient=tk.HORIZONTAL,
             maximum=max_value,
             mode='determinate')
-        progress.grid(row=1, column=1, sticky='ew')
+        progress.grid(row=1, column=1, sticky='nsew')
         progress.lift()
         return progress
 
@@ -320,7 +320,7 @@ class Client(ttk.Frame):
         logger.info(self)
 
     def drop_position(self, event):
-        if self._node.get('owner'):
+        if self._node.get('owner') or self._node.get('ip') == '?':
             return tkdnd.REFUSE_DROP
         else:
             return event.action
@@ -357,7 +357,7 @@ class Client(ttk.Frame):
         ).start()
 
     def finish(self):
-        self.status.set(f'{self._node["mode"]} - done')
+        self.status.set(f'{self._node["ip"]} - done')
         self.agent = None
 
 
@@ -397,9 +397,9 @@ class SettingDialog(Dialog):
         self.result = os.path.normpath(target_dir), hdpi == 1
 
     def change_folder(self, event):
-        folder = askdirectory(initialdir=self.saved_dir.get())
+        folder = askdirectory(initialdir=self.target_dir.get())
         if folder:
-            self.saved_dir.set(folder)
+            self.target_dir.set(folder)
 
 
 def bind_tree(widget, event, callback):
