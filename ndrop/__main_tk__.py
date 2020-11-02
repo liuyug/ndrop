@@ -45,7 +45,7 @@ class GUINetDropServer(NetDropServer):
 
     def init_bar(self, max_value):
         progress = GUIProgressBar(
-            self.parent.owner, orient=tk.HORIZONTAL,
+            self.parent.owner, orient=ttk.HORIZONTAL,
             maximum=max_value,
             mode='determinate')
         progress.grid(row=1, column=1, sticky='w')
@@ -70,7 +70,7 @@ class GUINetDropClient(NetDropClient):
 
     def init_bar(self, max_value):
         progress = GUIProgressBar(
-            self.parent, orient=tk.HORIZONTAL,
+            self.parent, orient=ttk.HORIZONTAL,
             maximum=max_value,
             mode='determinate')
         progress.grid(row=1, column=1, sticky='ew')
@@ -78,7 +78,7 @@ class GUINetDropClient(NetDropClient):
         return progress
 
 
-class ScrolledWindow(tk.Frame):
+class ScrolledWindow(ttk.Frame):
     """
     https://stackoverflow.com/questions/16188420/tkinter-scrollbar-for-frame
     1. Master widget gets scrollbars and a canvas. Scrollbars are connected
@@ -184,7 +184,7 @@ class ScrolledWindow(tk.Frame):
         self.canv.itemconfig(self.item_window, width=event.width)
 
 
-class Client(tk.Frame):
+class Client(ttk.Frame):
     image_dir = os.path.join(os.path.dirname(__file__), 'image')
     OS_IMAGES = {
         'back': os.path.join(image_dir, 'BackTile.png'),
@@ -205,9 +205,6 @@ class Client(tk.Frame):
         super().__init__(parent, *args, **kwargs)
         self.parent = parent
         self._node = node
-        bg_color = 'white'
-
-        # self.configure(background=bg_color)
 
         back = Image.open(self.OS_IMAGES['back'])
         os_image = self.OS_IMAGES.get(node['operating_system']) or self.OS_IMAGES['unknown']
@@ -217,14 +214,17 @@ class Client(tk.Frame):
         image.alpha_composite(fore)
         self.image = ImageTk.PhotoImage(image)
 
-        label_image = tk.Label(self, image=self.image, bg=bg_color)
+        self.style = ttk.Style()
+        self.style.configure('client.TLabel', background='white')
+
+        label_image = ttk.Label(self, image=self.image, style='client.TLabel')
         label_image.grid(row=0, column=0, rowspan=2, sticky='w')
 
         if node['mode'] == '?':
             self.text = f'{node.get("user")}\n@{node["name"]}'
         else:
             self.text = f'{node.get("mode")}\n@{node["name"]}'
-        label_text = tk.Label(self, text=self.text, anchor='w', bg=bg_color, justify=tk.LEFT)
+        label_text = ttk.Label(self, text=self.text, anchor='w', style='client.TLabel', justify=tk.LEFT)
         label_text.grid(row=0, column=1, sticky='ew')
 
         self.status = tk.StringVar()
@@ -232,11 +232,11 @@ class Client(tk.Frame):
             self.status.set('ready')
         else:
             self.status.set(f'{self._node["ip"]} - ready')
-        label_status = tk.Label(self, textvariable=self.status, anchor='w', bg=bg_color, justify=tk.LEFT)
-        label_status.grid(row=1, column=1, sticky='ew')
+        label_status = ttk.Label(self, textvariable=self.status, anchor='w', style='client.TLabel', justify=tk.LEFT)
+        label_status.grid(row=1, column=1, sticky='nsew')
 
-        self.rowconfigure(0, weight=1)
-        self.columnconfigure(1, weight=2)
+        self.rowconfigure(1, weight=1)
+        self.columnconfigure(1, weight=1)
 
         dnd_types = [tkdnd.DND_FILES, tkdnd.DND_TEXT]
 
