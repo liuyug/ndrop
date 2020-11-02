@@ -315,7 +315,7 @@ class Client(ttk.Frame):
         logger.info(self)
 
     def drop_position(self, event):
-        if self._node['ip'] == '?':
+        if self._node.get('owner'):
             return tkdnd.REFUSE_DROP
         else:
             return event.action
@@ -385,6 +385,7 @@ class GuiApp(tkdnd.Tk):
         owner_node['operating_system'] = uname.system.lower()
         owner_node['mode'] = '?'
         owner_node['ip'] = ', '.join(ipaddrs)
+        owner_node['owner'] = True
         self.owner = Client(self, owner_node)
         self.owner.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
 
@@ -401,6 +402,7 @@ class GuiApp(tkdnd.Tk):
         unknown_node['operating_system'] = 'ip'
         unknown_node['mode'] = '?'
         unknown_node['ip'] = '?'
+        unknown_node['owner'] = True
         self.unknown_client = Client(self.frame, unknown_node)
         self.unknown_client.grid(sticky='ew', padx=10, pady=5)
 
