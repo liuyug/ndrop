@@ -14,7 +14,7 @@ import tkinterdnd2 as tkdnd
 import tkinter as tk
 import tkinter.ttk as ttk
 
-
+from . import hdpitk
 from . import about
 from .netdrop import NetDropServer, NetDropClient
 
@@ -398,6 +398,7 @@ def run():
     app_logger.addHandler(handler)
 
     app = GuiApp()
+    hdpitk.MakeTkDPIAware(app)
     app.run()
 
 
