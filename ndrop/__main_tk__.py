@@ -130,6 +130,24 @@ class NdropImage():
         return ImageTk.PhotoImage(image)
 
 
+class AutoScrollbar(ttk.Scrollbar):
+    # a scrollbar that hides itself if it's not needed.  only
+    # works if you use the grid geometry manager.
+    def set(self, lo, hi):
+        if float(lo) <= 0.0 and float(hi) >= 1.0:
+            # grid_remove is currently missing from Tkinter!
+            self.tk.call("grid", "remove", self)
+        else:
+            self.grid()
+        super().set(lo, hi)
+
+    def pack(self, **kw):
+        raise tk.TclError("cannot use pack with this widget")
+
+    def place(self, **kw):
+        raise tk.TclError("cannot use place with this widget")
+
+
 class ScrolledWindow(ttk.Frame):
     """
     https://stackoverflow.com/questions/16188420/tkinter-scrollbar-for-frame
@@ -172,14 +190,14 @@ class ScrolledWindow(ttk.Frame):
 
         # creating a scrollbars
         if xbar:
-            self.xscrlbr = ttk.Scrollbar(self,
+            self.xscrlbr = AutoScrollbar(self,
                                          orient='horizontal',
                                          command=self.canv.xview)
             self.xscrlbr.grid(column=0, row=1, sticky='ew')
             self.canv.config(xscrollcommand=self.xscrlbr.set)
 
         if ybar:
-            self.yscrlbr = ttk.Scrollbar(self,
+            self.yscrlbr = AutoScrollbar(self,
                                          orient='vertical',
                                          command=self.canv.yview)
             self.yscrlbr.grid(column=1, row=0, sticky='ns')
