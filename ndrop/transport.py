@@ -8,16 +8,17 @@ import ifaddr
 logger = logging.getLogger(__name__)
 
 
-CHUNK_SIZE = 1024 * 64
+CHUNK_SIZE = 1024 * 32
 
 
 def set_chunk_size(size=None):
+    global CHUNK_SIZE
+
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sndbuf = s.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
     # buffer overflow when it is more than max size at windows
-    sndbuf -= 1024
+    sndbuf = min(sndbuf, CHUNK_SIZE)
 
-    global CHUNK_SIZE
     if size:
         CHUNK_SIZE = min(size, sndbuf)
     else:
