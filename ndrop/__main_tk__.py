@@ -69,11 +69,9 @@ class GUINetDropServer(NetDropServer):
 
 
 class GUINetDropClient(NetDropClient):
-    def __init__(self, parent):
+    def __init__(self, parent, ip, mode, cert=None, key=None):
         self.parent = parent
-        cert = None
-        key = None
-        super().__init__(parent._node['ip'], parent._node['mode'].lower(), ssl_ck=(cert, key))
+        super().__init__(ip, mode.lower(), ssl_ck=(cert, key))
 
     def init_bar(self, max_value):
         progress = GUIProgressBar(
@@ -83,6 +81,10 @@ class GUINetDropClient(NetDropClient):
         progress.grid(row=1, column=1, sticky='nsew')
         progress.lift()
         return progress
+
+    def send_finish(self, err=None):
+        super().send_finish(err)
+        self.parent.finish(err)
 
 
 IMAGES = {
@@ -260,12 +262,12 @@ class ScrolledWindow(ttk.Frame):
 
 
 class Client(ttk.Frame):
-    _node = None
+    node = None
 
     def __init__(self, parent, node, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.parent = parent
-        self._node = node
+        self.node = node
 
         self.image = NdropImage.get_os_image(node['operating_system'])
 
@@ -285,10 +287,10 @@ class Client(ttk.Frame):
         label_text.grid(row=0, column=1, sticky='ew')
 
         self.status = tk.StringVar()
-        if self._node['ip'] == '?':
+        if self.node['ip'] == '?':
             self.status.set('ready')
         else:
-            self.status.set(f'{self._node["ip"]} - ready')
+            self.status.set(f'{self.node["ip"]} - ready')
         label_status = ttk.Label(
             self, textvariable=self.status,
             anchor='w', style='client.TLabel', justify=tk.LEFT)
@@ -314,13 +316,22 @@ class Client(ttk.Frame):
             bind_tree(child, event, callback)
 
     def __str__(self):
-        return '%(mode)s@%(name)s(%(ip)s)' % self._node
+        return '%(mode)s@%(name)s(%(ip)s)' % self.node
 
     def click(self, event):
-        logger.info(self)
+        if self.node['owner'] == 'unknown':
+            dlg = IPSendDialog(self.master, 'IP connection',
+                               ip=self.node['ip'],
+                               mode=self.node['mode'])
+            if dlg.result and dlg.result[0]:
+                self.node['ip'] = dlg.result[0]
+                self.node['mode'] = dlg.result[1]
+                self.status.set(f'{self.node["ip"]} - ready')
+        else:
+            logger.info(self)
 
     def drop_position(self, event):
-        if self._node.get('owner') or self._node.get('ip') == '?':
+        if self.node.get('owner') == 'self' or self.node.get('ip') == '?':
             return tkdnd.REFUSE_DROP
         else:
             return event.action
@@ -341,7 +352,7 @@ class Client(ttk.Frame):
             return tkdnd.COPY
 
     def send_text(self, text):
-        agent = GUINetDropClient(self)
+        agent = GUINetDropClient(self, self.node['ip'], self.node['mode'])
         threading.Thread(
             name='Ndrop client',
             target=agent.send_text,
@@ -349,20 +360,21 @@ class Client(ttk.Frame):
         ).start()
 
     def send_files(self, files):
-        agent = GUINetDropClient(self)
+        agent = GUINetDropClient(self, self.node['ip'], self.node['mode'])
         threading.Thread(
             name='Ndrop client',
             target=agent.send_files,
             args=(files, ),
         ).start()
 
-    def finish(self):
-        self.status.set(f'{self._node["ip"]} - done')
+    def finish(self, err=None):
+        err = err or 'done'
+        self.status.set(f'{self.node["ip"]} - {err}')
         self.agent = None
 
 
 class SettingDialog(Dialog):
-    def __init__(self, parent, title, **kwargs):
+    def __init__(self, master, title=None, **kwargs):
         target_dir = kwargs.get('target_dir', '')
         self.target_dir = tk.StringVar()
         self.target_dir.set(target_dir)
@@ -371,25 +383,25 @@ class SettingDialog(Dialog):
         self.hdpi = tk.IntVar()
         self.hdpi.set(hdpi)
 
-        super().__init__(parent, title)
+        super().__init__(master, title)
 
-    def body(self, parent):
-        label = ttk.Label(parent, text='Saved folder:')
+    def body(self, master):
+        label = ttk.Label(master, text='Saved folder:')
         label.grid(row=0, sticky='w')
 
-        entry = ttk.Entry(parent, textvariable=self.target_dir, width=40)
+        entry = ttk.Entry(master, textvariable=self.target_dir, width=40)
         entry.grid(row=1, column=0, sticky='ew')
 
-        button = ttk.Button(parent, text='Change folder')
+        button = ttk.Button(master, text='Change folder')
         button.grid(row=2, column=0, sticky='e')
         button.bind('<Button-1>', self.change_folder)
 
-        checkbox = ttk.Checkbutton(parent, text='Enable HDPI', variable=self.hdpi)
+        checkbox = ttk.Checkbutton(master, text='Enable HDPI', variable=self.hdpi)
         checkbox.grid(row=3, column=0, sticky='ew')
 
-        parent.rowconfigure(1, weight=1)
-        parent.columnconfigure(0, weight=1)
-        parent.pack(fill=tk.BOTH)
+        master.rowconfigure(1, weight=1)
+        master.columnconfigure(0, weight=1)
+        master.pack(fill=tk.BOTH)
 
     def apply(self):
         target_dir = self.target_dir.get()
@@ -400,6 +412,43 @@ class SettingDialog(Dialog):
         folder = askdirectory(initialdir=self.target_dir.get())
         if folder:
             self.target_dir.set(folder)
+
+
+class IPSendDialog(Dialog):
+    def __init__(self, master, title=None, ip=None, mode=None, **kwargs):
+        self.dest_ip = tk.StringVar()
+        if ip and ip != '?':
+            self.dest_ip.set(ip)
+        self.mode = tk.StringVar()
+        if mode and mode != '?':
+            self.mode.set(mode)
+        super().__init__(master, title)
+
+    def body(self, master):
+        label = ttk.Label(master, text='IP Address:')
+        label.grid(row=0, column=0, sticky='w')
+
+        entry = ttk.Entry(master, textvariable=self.dest_ip, width=20)
+        entry.grid(row=0, column=1, sticky='ew')
+
+        label = ttk.Label(master, text='Mode:')
+        label.grid(row=1, column=0, sticky='w')
+
+        choices = ['Dukto', 'NitroShare']
+        if not self.mode.get():
+            self.mode.set(choices[0])
+        combo = ttk.Combobox(master, values=choices, textvariable=self.mode)
+        combo.grid(row=1, column=1, sticky='ew')
+
+        # master.rowconfigure(1, weight=1)
+        master.columnconfigure(1, weight=1)
+        master.pack(fill=tk.BOTH)
+        return entry
+
+    def apply(self):
+        dest_ip = self.dest_ip.get()
+        mode = self.mode.get()
+        self.result = (dest_ip, mode)
 
 
 def bind_tree(widget, event, callback):
@@ -431,7 +480,7 @@ class GuiApp(tkdnd.Tk):
         owner_node['operating_system'] = uname.system.lower()
         owner_node['mode'] = '?'
         owner_node['ip'] = ', '.join(ipaddrs)
-        owner_node['owner'] = True
+        owner_node['owner'] = 'self'
         self.owner = Client(self, owner_node)
         self.owner.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
 
@@ -448,7 +497,7 @@ class GuiApp(tkdnd.Tk):
         unknown_node['operating_system'] = 'ip'
         unknown_node['mode'] = '?'
         unknown_node['ip'] = '?'
-        unknown_node['owner'] = True
+        unknown_node['owner'] = 'unknown'
         self.unknown_client = Client(self.frame, unknown_node)
         self.unknown_client.grid(sticky='ew', padx=10, pady=5)
 
@@ -504,7 +553,7 @@ class GuiApp(tkdnd.Tk):
         elif item[0] == 'remove_node':
             node = item[1]
             for client in self.frame.winfo_children():
-                if client._node['user'] == node['user'] and client._node['name'] == node['name']:
+                if client.node['user'] == node['user'] and client.node['name'] == node['name']:
                     client.destroy()
 
     def run(self):

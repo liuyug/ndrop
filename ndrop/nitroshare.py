@@ -270,6 +270,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         logger.info('[NitroShare] connect from %s:%s' % self.client_address)
+        err = None
         while True:
             data = self.request.recv(CHUNK_SIZE)
             if not data:
@@ -284,7 +285,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 data = self._packet.pack_success()
                 self.request.sendall(data)
                 break
-        self.server.agent.request_finish()
+        self.server.agent.request_finish(err)
 
     def finish(self):
         pass
@@ -390,8 +391,8 @@ class NitroshareServer(Transport):
     def recv_finish_file(self, path):
         self._owner.recv_finish_file(path)
 
-    def request_finish(self):
-        self._owner.request_finish()
+    def request_finish(self, err=None):
+        self._owner.request_finish(err)
 
     def send_broadcast(self, data, port):
         try:
@@ -468,6 +469,7 @@ class NitroshareClient(Transport):
     _key = None
     _owner = None
     _packet = None
+    _timeout = 5
 
     def __init__(self, owner, addr, ssl_ck=None):
         if ssl_ck:
@@ -490,10 +492,12 @@ class NitroshareClient(Transport):
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
             sock = ssl_context.wrap_socket(sock, server_side=False)
-        sock.connect(self._address)
 
         uname = platform.uname()
+        sock.settimeout(self._timeout)
+        err = None
         try:
+            sock.connect(self._address)
             header = self._packet.pack_files_header(uname.node, total_size, len(files))
             sock.sendall(header)
 
@@ -509,10 +513,14 @@ class NitroshareClient(Transport):
             self._packet.unpack_tcp(self, data)
         except KeyboardInterrupt:
             pass
-        except Exception:
-            raise
+        except socket.timeout as e:
+            err = e
+            print(err)
+        except Exception as e:
+            err = e
+            print(err)
         sock.close()
-        self.send_finish()
+        self.send_finish(err)
 
     def send_feed_file(self, path, data, send_size, file_size, total_send_size, total_size):
         self._owner.send_feed_file(path, data, send_size, file_size, total_send_size, total_size)
@@ -520,5 +528,5 @@ class NitroshareClient(Transport):
     def send_finish_file(self, path):
         self._owner.send_finish_file(path)
 
-    def send_finish(self):
-        self._owner.send_finish()
+    def send_finish(self, err=None):
+        self._owner.send_finish(err)

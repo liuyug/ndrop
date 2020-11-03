@@ -124,7 +124,8 @@ class NetDropServer(NetDrop):
                     path += os.sep
                 self._bar.write('%s' % (path), file=sys.stderr)
 
-    def request_finish(self):
+    def request_finish(self, err=None):
+        """interrupt current transport and finish immediately"""
         if self._bar is not None:
             self._bar.close()
             self._bar = None
@@ -226,7 +227,7 @@ class NetDropClient(NetDrop):
                 path += os.sep
             self._bar.write('%s' % (path), file=sys.stderr)
 
-    def send_finish(self):
+    def send_finish(self, err=None):
         if self._bar is not None:
             self._bar.close()
             self._bar = None
