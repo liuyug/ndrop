@@ -415,6 +415,20 @@ class SettingDialog(Dialog):
         master.columnconfigure(0, weight=1)
         master.pack(fill=tk.BOTH)
 
+    def buttonbox(self):
+        """replace origin wdiget with ttk"""
+        box = ttk.Frame(self)
+
+        w = ttk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+        w = ttk.Button(box, text="Cancel", width=10, command=self.cancel)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.bind("<Return>", self.ok)
+        self.bind("<Escape>", self.cancel)
+
+        box.pack()
+
     def apply(self):
         target_dir = self.target_dir.get()
         hdpi = self.hdpi.get()
@@ -449,13 +463,27 @@ class IPSendDialog(Dialog):
         choices = ['Dukto', 'NitroShare']
         if not self.mode.get():
             self.mode.set(choices[0])
-        combo = ttk.Combobox(master, values=choices, textvariable=self.mode)
+        combo = ttk.Combobox(master, values=choices, textvariable=self.mode, state="readonly")
         combo.grid(row=1, column=1, sticky='ew')
 
         # master.rowconfigure(1, weight=1)
         master.columnconfigure(1, weight=1)
         master.pack(fill=tk.BOTH)
         return entry
+
+    def buttonbox(self):
+        """replace origin wdiget with ttk"""
+        box = ttk.Frame(self)
+
+        w = ttk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+        w = ttk.Button(box, text="Cancel", width=10, command=self.cancel)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.bind("<Return>", self.ok)
+        self.bind("<Escape>", self.cancel)
+
+        box.pack()
 
     def apply(self):
         dest_ip = self.dest_ip.get()
