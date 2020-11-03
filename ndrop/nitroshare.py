@@ -97,6 +97,9 @@ class Packet():
             jdata['last_read'] = ''
             bdata = json.dumps(jdata).encode('utf-8')
 
+            # packet format
+            # L    B   B * (size - 1)
+            # size tag data
             data.extend((len(bdata) + 1).to_bytes(4, byteorder='little', signed=True))
             data.append(0x02)
             data.extend(bdata)
@@ -116,8 +119,7 @@ class Packet():
                 file_changed = False
                 with open(path, 'rb') as f:
                     while not file_changed:
-                        packet_size = min(CHUNK_SIZE - len(data), size - send_size)
-                        chunk = f.read(packet_size)
+                        chunk = f.read(CHUNK_SIZE - len(data) - 5)
                         if not chunk:
                             break
                         if (send_size + len(chunk)) > size:
@@ -129,7 +131,7 @@ class Packet():
                             if cont != 'Yes':
                                 transfer_abort = True
                         # binary header, every binary packet is less than CHUNK_SIZE
-                        data.extend((packet_size + 1).to_bytes(4, byteorder='little', signed=True))
+                        data.extend((len(chunk) + 1).to_bytes(4, byteorder='little', signed=True))
                         data.append(0x03)
                         send_size += len(chunk)
                         total_send_size += len(chunk)
@@ -138,10 +140,10 @@ class Packet():
                             send_size, size, total_send_size, total_size,
                         )
                         data.extend(chunk)
-                        if len(data) > (CHUNK_SIZE - 1024):
-                            yield data
-                            data.clear()
-                            assert len(data) == 0
+                        # send if packet_size more than chunk_size
+                        if len(data) >= CHUNK_SIZE:
+                            yield data[:CHUNK_SIZE]
+                            del data[:CHUNK_SIZE]
             agent.send_finish_file(name)
             if transfer_abort:
                 break
@@ -219,19 +221,18 @@ class Packet():
                     raise ValueError('Error Type: %s' % typ)
             elif self._status == STATUS['data']:
                 size, typ = struct.unpack('<lb', data[:5])
-                size -= 1
-                if size > len(data):    # many packets for one file.
+                data_size = size - 1
+                if data_size > (len(data) - 5):    # wait for more packet data
                     return
-                del data[:5]
                 if typ == 0x03:   # data
-                    self._recv_file_size += size
-                    self._total_recv_size += size
+                    self._recv_file_size += data_size
+                    self._total_recv_size += data_size
                     agent.recv_feed_file(
-                        self._filename, data[:size],
+                        self._filename, data[5:5 + data_size],
                         self._recv_file_size, self._filesize,
                         self._total_recv_size, self._total_size,
                     )
-                    del data[:size]
+                    del data[:5 + data_size]
                     if self._recv_file_size == self._filesize:
                         self._status = STATUS['header']
                         self._recv_record += 1
@@ -240,6 +241,8 @@ class Packet():
                             self._total_recv_size == self._total_size:
                         self._status = STATUS['idle']
                         return True
+                else:
+                    raise ValueError('Error Type: %s' % typ)
 
 
 class UDPHandler(socketserver.BaseRequestHandler):

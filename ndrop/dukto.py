@@ -111,6 +111,9 @@ class DuktoPacket():
         total_send_size = 0
         transfer_abort = False
         for path, name, size in files:
+            # packet format
+            # B * n B    D    B * size
+            # name  0x00 size data
             data.extend(name.encode('utf-8'))
             data.append(0x00)
             data.extend(size.to_bytes(8, byteorder='little', signed=True))
@@ -145,9 +148,9 @@ class DuktoPacket():
                             send_size, size, total_send_size, total_size,
                         )
                         data.extend(chunk)
-                        if len(data) > (CHUNK_SIZE - 1024):
-                            yield data
-                            data.clear()
+                        if len(data) >= CHUNK_SIZE:
+                            yield data[:CHUNK_SIZE]
+                            del data[:CHUNK_SIZE]
             agent.send_finish_file(name)
             if transfer_abort:
                 break
