@@ -9,14 +9,13 @@ import ssl
 import getpass
 import platform
 
-from .transport import Transport, get_broadcast_address
+from .transport import Transport, get_broadcast_address, CHUNK_SIZE, set_chunk_size
 from .about import get_system_symbol
 
 
 logger = logging.getLogger(__name__)
 
 
-CHUNK_SIZE = 1024 * 32
 DEFAULT_UDP_PORT = 4644
 DEFAULT_TCP_PORT = 4644
 TEXT_TAG = '___DUKTO___TEXT___'
@@ -27,17 +26,6 @@ STATUS = {
     'filesize': 2,
     'data': 3,
 }
-
-
-def set_chunk_size(size=None):
-    global CHUNK_SIZE
-    if size:
-        CHUNK_SIZE = size
-    else:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sndbuf = s.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
-        logger.debug('set CHUNK_SIZE: %s' % sndbuf)
-        CHUNK_SIZE = sndbuf
 
 
 class DuktoPacket():

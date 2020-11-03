@@ -8,6 +8,23 @@ import ifaddr
 logger = logging.getLogger(__name__)
 
 
+CHUNK_SIZE = 1024 * 64
+
+
+def set_chunk_size(size=None):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sndbuf = s.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
+    # buffer overflow when it is more than max size at windows
+    sndbuf -= 1024
+
+    global CHUNK_SIZE
+    if size:
+        CHUNK_SIZE = min(size, sndbuf)
+    else:
+        CHUNK_SIZE = sndbuf
+    logger.debug('set CHUNK_SIZE: %s' % CHUNK_SIZE)
+
+
 def drop_ip(ip_addr):
     exclude_ipaddr = ['127.0', '169.254']
     for e_ip in exclude_ipaddr:

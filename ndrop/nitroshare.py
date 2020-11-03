@@ -12,14 +12,13 @@ import platform
 import uuid
 import json
 
-from .transport import Transport, get_broadcast_address
+from .transport import Transport, get_broadcast_address, CHUNK_SIZE, set_chunk_size
 from .about import get_system_symbol
 
 
 logger = logging.getLogger(__name__)
 
 
-CHUNK_SIZE = 1024 * 64
 DEFAULT_UDP_PORT = 40816
 DEFAULT_TCP_PORT = 40818
 
@@ -28,19 +27,6 @@ STATUS = {
     'header': 1,
     'data': 2,
 }
-
-
-def set_chunk_size(size=None):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sndbuf = s.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
-    # buffer overflow when it is more than max size at windows
-    sndbuf -= 1024
-
-    global CHUNK_SIZE
-    if size:
-        CHUNK_SIZE = min(size, sndbuf)
-    else:
-        CHUNK_SIZE = sndbuf
 
 
 class Packet():
