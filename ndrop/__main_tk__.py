@@ -34,15 +34,16 @@ class GUIProgressBar(ttk.Progressbar):
         super().__init__(parent, **kwargs)
 
     def update(self, step):
-        self.step(step)
+        self.parent.queue.put_nowait(('step', step))
+        self.parent.event_generate('<<client_queue_event>>')
 
     def write(self, message, file=None):
         logger.info(message)
 
     def close(self):
-        self.destroy()
         logger.info('done')
-        self.parent.finish()
+        self.parent.queue.put_nowait(('close', None))
+        self.parent.event_generate('<<client_queue_event>>')
 
 
 class GUINetDropServer(NetDropServer):
@@ -57,15 +58,16 @@ class GUINetDropServer(NetDropServer):
             mode='determinate')
         progress.grid(row=1, column=1, sticky='nsew')
         progress.lift()
+        self.parent.owner.progress = progress
         return progress
 
     def add_node(self, node):
         self.parent.queue.put_nowait(('add_node', node))
-        self.parent.event_generate('<<queue_event>>')
+        self.parent.event_generate('<<server_queue_event>>')
 
     def remove_node(self, node):
         self.parent.queue.put_nowait(('remove_node', node))
-        self.parent.event_generate('<<queue_event>>')
+        self.parent.event_generate('<<server_queue_event>>')
 
 
 class GUINetDropClient(NetDropClient):
@@ -80,11 +82,8 @@ class GUINetDropClient(NetDropClient):
             mode='determinate')
         progress.grid(row=1, column=1, sticky='nsew')
         progress.lift()
+        self.parent.progress = progress
         return progress
-
-    def send_finish(self, err=None):
-        super().send_finish(err)
-        self.parent.finish(err)
 
 
 IMAGES = {
@@ -269,6 +268,9 @@ class Client(ttk.Frame):
         self.parent = parent
         self.node = node
 
+        self.queue = queue.SimpleQueue()
+        self.bind('<<client_queue_event>>', self.queue_handler)
+
         self.image = NdropImage.get_os_image(node['operating_system'])
 
         self.style = ttk.Style()
@@ -317,6 +319,16 @@ class Client(ttk.Frame):
 
     def __str__(self):
         return '%(mode)s@%(name)s(%(ip)s)' % self.node
+
+    def queue_handler(self, event):
+        item = self.queue.get_nowait()
+        if getattr(self, 'progress'):
+            if item[0] == 'step':
+                self.progress.step(item[1])
+            elif item[0] == 'close':
+                self.progress.destroy()
+                self.progress = None
+                self.finish()
 
     def click(self, event):
         if self.node['owner'] == 'unknown':
@@ -524,7 +536,7 @@ class GuiApp(tkdnd.Tk):
         self.rowconfigure(2, weight=1)
         self.columnconfigure(0, weight=1)
 
-        self.bind('<<queue_event>>', self.queue_handler)
+        self.bind('<<server_queue_event>>', self.queue_handler)
 
     def open_folder(self, event):
         webbrowser.open(gConfig.app['target_dir'])

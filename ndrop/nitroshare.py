@@ -31,13 +31,15 @@ STATUS = {
 
 
 def set_chunk_size(size=None):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sndbuf = s.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
+    # buffer overflow when it is more than max size at windows
+    sndbuf -= 1024
+
     global CHUNK_SIZE
     if size:
-        CHUNK_SIZE = size
+        CHUNK_SIZE = min(size, sndbuf)
     else:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sndbuf = s.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
-        logger.debug('set CHUNK_SIZE: %s' % sndbuf)
         CHUNK_SIZE = sndbuf
 
 
@@ -136,7 +138,7 @@ class Packet():
                             file_changed = True
                             # correct size
                             chunk = chunk[:size - send_size]
-                            print('File Changed: [%s] %s => %s.' % (name, size, send_size))
+                            logger.error('File Changed: [%s] %s => %s.' % (name, size, send_size))
                             cont = input('Drop data and continue? [Yes/No]')
                             if cont != 'Yes':
                                 transfer_abort = True
@@ -153,6 +155,7 @@ class Packet():
                         if len(data) > (CHUNK_SIZE - 1024):
                             yield data
                             data.clear()
+                            assert len(data) == 0
             agent.send_finish_file(name)
             if transfer_abort:
                 break
@@ -278,7 +281,8 @@ class TCPHandler(socketserver.BaseRequestHandler):
             self._recv_buff.extend(data)
             try:
                 ret = self._packet.unpack_tcp(self.server.agent, self._recv_buff)
-            except Exception as err:
+            except Exception as e:
+                err = e
                 logger.error('%s' % err)
                 break
             if ret:
@@ -497,8 +501,8 @@ class NitroshareClient(Transport):
         sock.settimeout(self._timeout)
         err = None
         try:
-            sock.connect(self._address)
             header = self._packet.pack_files_header(uname.node, total_size, len(files))
+            sock.connect(self._address)
             sock.sendall(header)
 
             for chunk in self._packet.pack_files(self, total_size, files):
@@ -515,10 +519,10 @@ class NitroshareClient(Transport):
             pass
         except socket.timeout as e:
             err = e
-            print(err)
+            logger.error(err)
         except Exception as e:
             err = e
-            print(err)
+            logger.error(err)
         sock.close()
         self.send_finish(err)
 

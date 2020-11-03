@@ -146,7 +146,7 @@ class DuktoPacket():
                             file_changed = True
                             # correct size
                             chunk = chunk[:size - send_size]
-                            print('File Changed: [%s] %s => %s.' % (name, size, send_size))
+                            logger.error('File Changed: [%s] %s => %s.' % (name, size, send_size))
                             cont = input('Drop data and continue? [Yes/No]')
                             if cont.lower() != 'yes':
                                 transfer_abort = True
@@ -494,10 +494,10 @@ class DuktoClient(Transport):
             pass
         except socket.timeout as e:
             err = e
-            print(err)
+            logger.error(err)
         except Exception as e:
             err = e
-            print(err)
+            logger.error(err)
         sock.close()
         self.send_finish(err)
 
@@ -520,10 +520,10 @@ class DuktoClient(Transport):
             pass
         except socket.timeout as e:
             err = e
-            print(err)
+            logger.error(err)
         except Exception as e:
             err = e
-            print(err)
+            logger.error(err)
         sock.close()
         self.send_finish(err)
 

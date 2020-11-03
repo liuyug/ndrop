@@ -22,8 +22,6 @@ class NetDrop(object):
     _transport = None
 
     def init_bar(self, max_value):
-        if logger.getEffectiveLevel() == logging.DEBUG:
-            return
         return tqdm(
             total=max_value,
             unit='B', unit_scale=True, unit_divisor=1024,
