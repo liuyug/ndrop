@@ -709,7 +709,7 @@ class GuiApp(tkdnd.Tk):
             self.server.saved_to(gConfig.app['target_dir'])
 
     def show_hfs(self, event):
-        HFSDialog(self)
+        HFSDialog(self, 'HFS')
 
     def queue_handler(self, event):
         item = self.queue.get_nowait()
