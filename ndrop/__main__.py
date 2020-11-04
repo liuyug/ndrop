@@ -4,6 +4,7 @@ import time
 import argparse
 import logging
 import threading
+import glob
 
 from . import about
 from . import hfs
@@ -85,7 +86,10 @@ def run():
         if args.text:
             client.send_text(' '.join(args.param))
         else:
-            client.send_files(args.param)
+            params = []
+            for p in args.param:
+                params.extend(glob.glob(p))
+            client.send_files(params)
         return
 
     if args.listen:
