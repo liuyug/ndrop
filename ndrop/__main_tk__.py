@@ -58,11 +58,11 @@ class GUIProgressBar(ttk.Progressbar):
         self.count = [0] * (1000 // self.interval)
         self.speed = f'{human_size(sum(self.count)):>9}/s'
         style.configure('text.Horizontal.TProgressbar', text=self.speed)
-        self.parent.after(self.timer_interval, self.on_timer_update)
+        self.parent.after(self.interval, self.on_timer_update)
 
     def on_timer_update(self):
         if self.step_count >= 0:
-            self.parent.after(self.timer_interval, self.on_timer_update)
+            self.parent.after(self.interval, self.on_timer_update)
             self.speed = f'{human_size(sum(self.count)):>9}/s'
             self.count[self.time_index] = self.step_count
             self.step_count = 0
@@ -80,7 +80,7 @@ class GUIProgressBar(ttk.Progressbar):
     def close(self):
         logger.info('done')
         self.step_count = -1
-        self.parent.on_progressbar_close()
+        self.parent.on_progressbar_close(self.speed.strip())
 
 
 class GUINetDropServer(NetDropServer):
@@ -366,14 +366,14 @@ class Client(ttk.Frame):
             elif item[0] == 'close':
                 self.progress.destroy()
                 self.progress = None
-                self.finish()
+                self.status.set(f'{self.node["ip"]} - done - {item[1]}')
 
     def on_progressbar_update(self, step):
         self.queue.put_nowait(('step', step))
         self.event_generate(self.virtual_event)
 
-    def on_progressbar_close(self):
-        self.queue.put_nowait(('close', None))
+    def on_progressbar_close(self, speed):
+        self.queue.put_nowait(('close', speed))
         self.event_generate(self.virtual_event)
 
     def click(self, event):
@@ -424,11 +424,6 @@ class Client(ttk.Frame):
             target=agent.send_files,
             args=(files, ),
         ).start()
-
-    def finish(self, err=None):
-        err = err or 'done'
-        self.status.set(f'{self.node["ip"]} - {err}')
-        self.agent = None
 
 
 class SettingDialog(Dialog):
