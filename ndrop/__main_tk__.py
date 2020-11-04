@@ -52,20 +52,26 @@ class GUIProgressBar(ttk.Progressbar):
             ]
         )
         super().__init__(parent, style='text.Horizontal.TProgressbar', **kwargs)
-        self.count = 0
-        self.speed = f'{human_size(self.count)}/s'
+        self.interval = 100
+        self.step_count = 0
+        self.time_index = 0
+        self.count = [0] * (1000 // self.interval)
+        self.speed = f'{human_size(sum(self.count)):>9}/s'
         style.configure('text.Horizontal.TProgressbar', text=self.speed)
-        self.parent.after(1000, self.on_timer_update)
+        self.parent.after(self.timer_interval, self.on_timer_update)
 
     def on_timer_update(self):
-        self.speed = f'{human_size(self.count)}/s'
-        self.count = 0
-        # self.parent.after(1000, self.on_timer_update)
+        if self.step_count >= 0:
+            self.parent.after(self.timer_interval, self.on_timer_update)
+            self.speed = f'{human_size(sum(self.count)):>9}/s'
+            self.count[self.time_index] = self.step_count
+            self.step_count = 0
+            # 0 ~ 9
+            self.time_index = (self.time_index + 1) % (1000 // self.interval)
 
     def update(self, step):
-        self.count += step
+        self.step_count += step
         self.parent.on_progressbar_update(step)
-        self.speed = f'{human_size(self.count)}/s'
         self.style.configure('text.Horizontal.TProgressbar', text=self.speed)
 
     def write(self, message, file=None):
@@ -73,6 +79,7 @@ class GUIProgressBar(ttk.Progressbar):
 
     def close(self):
         logger.info('done')
+        self.step_count = -1
         self.parent.on_progressbar_close()
 
 
