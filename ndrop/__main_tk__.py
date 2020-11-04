@@ -23,7 +23,7 @@ from . import init_config, save_config, gConfig
 from . import hdpitk
 from . import about
 from .netdrop import NetDropServer, NetDropClient
-from .transport import get_broadcast_address
+from .transport import get_broadcast_address, human_size
 
 logger = logging.getLogger(__name__)
 
@@ -31,19 +31,49 @@ logger = logging.getLogger(__name__)
 class GUIProgressBar(ttk.Progressbar):
     def __init__(self, parent, **kwargs):
         self.parent = parent
-        super().__init__(parent, **kwargs)
+        self.style = style = ttk.Style()
+        # add label in the layout
+        style.layout(
+            'text.Horizontal.TProgressbar',
+            [
+                (
+                    'Horizontal.Progressbar.trough',
+                    {
+                        'children': [
+                            ('Horizontal.Progressbar.pbar', {'side': 'left', 'sticky': 'ns'})
+                        ],
+                        'sticky': 'nswe'
+                    }
+                ),
+                (
+                    'Horizontal.Progressbar.label',
+                    {'sticky': ''}
+                ),
+            ]
+        )
+        super().__init__(parent, style='text.Horizontal.TProgressbar', **kwargs)
+        self.count = 0
+        self.speed = f'{human_size(self.count)}/s'
+        style.configure('text.Horizontal.TProgressbar', text=self.speed)
+        self.parent.after(1000, self.on_timer_update)
+
+    def on_timer_update(self):
+        self.speed = f'{human_size(self.count)}/s'
+        self.count = 0
+        # self.parent.after(1000, self.on_timer_update)
 
     def update(self, step):
-        self.parent.queue.put_nowait(('step', step))
-        self.parent.event_generate('<<client_queue_event>>')
+        self.count += step
+        self.parent.on_progressbar_update(step)
+        self.speed = f'{human_size(self.count)}/s'
+        self.style.configure('text.Horizontal.TProgressbar', text=self.speed)
 
     def write(self, message, file=None):
         logger.info(message)
 
     def close(self):
         logger.info('done')
-        self.parent.queue.put_nowait(('close', None))
-        self.parent.event_generate('<<client_queue_event>>')
+        self.parent.on_progressbar_close()
 
 
 class GUINetDropServer(NetDropServer):
@@ -269,7 +299,8 @@ class Client(ttk.Frame):
         self.node = node
 
         self.queue = queue.SimpleQueue()
-        self.bind('<<client_queue_event>>', self.queue_handler)
+        self.virtual_event = '<<client_queue_event>>'
+        self.bind(self.virtual_event, self.queue_handler)
 
         self.image = NdropImage.get_os_image(node['operating_system'])
 
@@ -329,6 +360,14 @@ class Client(ttk.Frame):
                 self.progress.destroy()
                 self.progress = None
                 self.finish()
+
+    def on_progressbar_update(self, step):
+        self.queue.put_nowait(('step', step))
+        self.event_generate(self.virtual_event)
+
+    def on_progressbar_close(self):
+        self.queue.put_nowait(('close', None))
+        self.event_generate(self.virtual_event)
 
     def click(self, event):
         if self.node['owner'] == 'unknown':
