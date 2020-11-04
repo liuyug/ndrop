@@ -377,8 +377,8 @@ class DuktoServer(Transport):
             for broadcast in self._broadcasts:
                 num = self._broadcast_sock.sendto(data, (broadcast, port))
                 assert num == len(data), (broadcast, port, num, len(data))
-        except (socket.herror, socket.gaierror, socket.timeout) as err:
-            if err.errno == 101:  # Network is unreachable
+        except (OSError, socket.herror, socket.gaierror, socket.timeout) as err:
+            if err.errno == 101 or err.errno == 10051:  # Network is unreachable
                 pass
             else:
                 logger.error('[Dukto] send broadcast to "%s:%s": %s' % (broadcast, port, err))
