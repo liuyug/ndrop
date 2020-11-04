@@ -381,7 +381,7 @@ class Client(ttk.Frame):
         self.event_generate(self.virtual_event)
 
     def click(self, event):
-        if self.node['owner'] == 'unknown':
+        if self.node.get('owner') == 'unknown':
             dlg = IPSendDialog(self.master, 'IP connection',
                                ip=self.node['ip'],
                                mode=self.node['mode'])
