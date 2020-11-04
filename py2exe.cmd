@@ -32,5 +32,5 @@ pyinstaller ^
 --noconfirm ^
 %scriptk%
 
-
+del *.spec
 rem dist\ndrop.exe
