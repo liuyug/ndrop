@@ -17,11 +17,13 @@ import tkinter.ttk as ttk
 from tkinter.simpledialog import Dialog
 from tkinter.messagebox import showinfo
 from tkinter.filedialog import askdirectory
+from tkinter.scrolledtext import ScrolledText
 import appdirs
 
 from . import init_config, save_config, gConfig
 from . import hdpitk
 from . import about
+from . import hfs
 from .netdrop import NetDropServer, NetDropClient
 from .transport import get_broadcast_address, human_size
 
@@ -137,6 +139,7 @@ IMAGES = {
     'windowsphone': 'WindowsPhoneLogo.png',
     'config': 'ConfigIcon.png',
     'openfolder': 'OpenFolderIcon.png',
+    'hfs': 'hfs.png',
 }
 
 
@@ -478,7 +481,7 @@ class SettingDialog(Dialog):
     def change_folder(self, event):
         folder = askdirectory(initialdir=self.target_dir.get())
         if folder:
-            self.target_dir.set(folder)
+            self.target_dir.set(os.path.normpath(folder))
 
 
 class IPSendDialog(Dialog):
@@ -530,6 +533,80 @@ class IPSendDialog(Dialog):
         dest_ip = self.dest_ip.get()
         mode = self.mode.get()
         self.result = (dest_ip, mode)
+
+
+class HFSDialog(Dialog):
+    def __init__(self, master, title=None, **kwargs):
+        # Create a logging handler using a queue
+        self.log_queue = queue.Queue()
+        self.queue_handler = QueueHandler(self.log_queue)
+        formatter = logging.Formatter('%(message)s')
+        self.queue_handler.setFormatter(formatter)
+
+        hfs_logger = logging.getLogger('%s.hfs' % __name__.rpartition('.')[0])
+        hfs_logger.addHandler(self.queue_handler)
+
+        logger.info('-- HFS server start --')
+        listen = '0.0.0.0'
+        cert = None
+        key = None
+        self.hfs_server = hfs.start(listen,
+                  root_path=gConfig.app['target_dir'],
+                  cert=cert, key=key,
+                  daemon=True)
+        self.master = master
+        self.master.after(100, self.poll_log_queue)
+        super().__init__(master, title)
+
+    def display(self, record):
+        msg = self.queue_handler.format(record)
+        self.scrolled_text.configure(state='normal')
+        self.scrolled_text.insert(tk.END, msg + '\n', record.levelname)
+        self.scrolled_text.configure(state='disabled')
+        # Autoscroll to the bottom
+        self.scrolled_text.yview(tk.END)
+
+    def poll_log_queue(self):
+        # Check every 100ms if there is a new message in the queue to display
+        while True:
+            try:
+                record = self.log_queue.get(block=False)
+            except queue.Empty:
+                break
+            else:
+                self.display(record)
+        if self.hfs_server:
+            self.master.after(100, self.poll_log_queue)
+
+    def body(self, master):
+        self.scrolled_text = ScrolledText(master, state='disabled')
+        self.scrolled_text.grid(sticky='nsew')
+        master.rowconfigure(0, weight=1)
+        master.columnconfigure(0, weight=1)
+        master.pack(fill=tk.BOTH)
+
+    def buttonbox(self):
+        box = ttk.Frame(self)
+
+        w = ttk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+        self.bind("<Return>", self.ok)
+        box.pack()
+
+    def apply(self):
+        self.result = None
+        self.hfs_server.shutdown()
+        self.hfs_server = None
+        logger.info('-- HFS server close --')
+
+
+class QueueHandler(logging.Handler):
+    def __init__(self, log_queue):
+        super().__init__()
+        self.log_queue = log_queue
+
+    def emit(self, record):
+        self.log_queue.put(record)
 
 
 def bind_tree(widget, event, callback):
@@ -599,8 +676,13 @@ class GuiApp(tkdnd.Tk):
         label.grid(row=0, column=2, padx=10, pady=5)
         label.bind('<Button-1>', self.show_config)
 
+        self.image_hfs = NdropImage.get_image('hfs', background='green')
+        label = ttk.Label(footer, image=self.image_hfs, style='footer.TLabel')
+        label.grid(row=0, column=3, padx=10, pady=5)
+        label.bind('<Button-1>', self.show_hfs)
+
         footer.columnconfigure(0, weight=1)
-        footer.columnconfigure(3, weight=1)
+        footer.columnconfigure(4, weight=1)
 
         self.rowconfigure(2, weight=1)
         self.columnconfigure(0, weight=1)
@@ -619,10 +701,13 @@ class GuiApp(tkdnd.Tk):
         if dlg.result:
             target_dir, hdpi = dlg.result
             if gConfig.app['enable_hdpi'] != hdpi:
-                showinfo('Information', 'Close and open app again to enable HDPI')
+                showinfo('Information', 'Close and open app again for HDPI')
             gConfig.app['target_dir'] = target_dir
             gConfig.app['enable_hdpi'] = hdpi
             save_config()
+
+    def show_hfs(self, event):
+        HFSDialog(self)
 
     def queue_handler(self, event):
         item = self.queue.get_nowait()

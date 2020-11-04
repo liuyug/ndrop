@@ -44,11 +44,6 @@ def run():
         help='file, text or directory. refer to other option'
     )
 
-    group = parser.add_argument_group('Shell console')
-    group.add_argument('--shell',
-                       action='store_true',
-                       help='Shell console.')
-
     group = parser.add_argument_group('HTTP File Server')
     group.add_argument('--hfs',
                        action='store_true',

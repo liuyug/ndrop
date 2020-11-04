@@ -12,22 +12,20 @@ from .transport import get_broadcast_address
 logger = logging.getLogger(__name__)
 
 
-def get_network_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    s.connect(('<broadcast>', 0))
-    return s.getsockname()[0]
-
-
 class Handler(SimpleHTTPRequestHandler):
-    pass
+    def log_message(self, format, *args):
+        message = "%s - - [%s] %s" % (
+            self.client_address[0],
+            self.log_date_time_string(),
+            format % args)
+        logger.info(message)
 
 
 class ThreadingSimpleServer(ThreadingMixIn, HTTPServer):
     pass
 
 
-def start(listen, root_path=None, cert=None, key=None):
+def start(listen, root_path=None, cert=None, key=None, daemon=False):
     if listen:
         ip, _, port = listen.partition(':')
         port = int(port) if port else 8000
@@ -56,6 +54,15 @@ def start(listen, root_path=None, cert=None, key=None):
             ipaddrs, boradcasts = get_broadcast_address()
             logger.info('visit site: %s' % ', '.join(['%s://%s:%s' % (proto, ipaddr, port) for ipaddr in ipaddrs]))
         logger.info('Root path: %s' % root_path)
-        server.serve_forever()
+        if daemon:
+            threading.Thread(
+                name='HFS server',
+                target=server.serve_forever,
+                daemon=True,
+            ).start()
+        else:
+            # main thread
+            server.serve_forever()
     except KeyboardInterrupt:
         print('\n-- Quit --')
+    return server
