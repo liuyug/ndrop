@@ -2,6 +2,7 @@
 import logging
 import socket
 import ipaddress
+import math
 
 import ifaddr
 
@@ -21,6 +22,16 @@ def set_chunk_size(size=None):
     if size:
         CHUNK_SIZE = min(size, sndbuf)
     logger.debug('CHUNK_SIZE: %s' % CHUNK_SIZE)
+
+
+def human_size(size):
+    if size == 0:
+        return "0 B"
+    unit = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+    i = int(math.floor(math.log(size, 1024)))
+    p = math.pow(1024, i)
+    s = round(size / p, 2)
+    return "%s %s" % (s, unit[i])
 
 
 def drop_ip(ip_addr):
