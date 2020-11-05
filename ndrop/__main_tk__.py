@@ -550,6 +550,9 @@ class SendDialog(Dialog):
         btn_files = ttk.Button(master, text="Send Files", command=self.send_files)
         btn_files.grid(row=3, column=0, columnspan=4, sticky='ew', padx=5, pady=5)
 
+        btn_folder = ttk.Button(master, text="Send Folder", command=self.send_folder)
+        btn_folder.grid(row=4, column=0, columnspan=4, sticky='ew', padx=5, pady=5)
+
         # master.rowconfigure(1, weight=1)
         master.columnconfigure(1, weight=1)
         master.pack(fill=tk.BOTH)
@@ -603,6 +606,21 @@ class SendDialog(Dialog):
         if files:
             self.cancel()
             self.parent_frame.send_files(files)
+
+    def send_folder(self):
+        if self.parent_frame.node.get('owner') == 'unknown':
+            dest_ip = self.dest_ip.get()
+            mode = self.mode.get()
+            try:
+                ipaddr = ipaddress.ip_address(dest_ip)
+            except ValueError:
+                return
+            self.parent_frame.node['ip'] = str(ipaddr)
+            self.parent_frame.node['mode'] = mode
+        folder = askdirectory()
+        if folder:
+            self.cancel()
+            self.parent_frame.send_files([folder])
 
 
 class HFSDialog(Dialog):
