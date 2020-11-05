@@ -1,4 +1,6 @@
 
+call ..\env_noqt\Scripts\activate
+
 rmdir build /s /q
 del dist\ndrop.exe /q
 
@@ -34,3 +36,5 @@ pyinstaller ^
 
 del *.spec
 rem dist\ndrop.exe
+
+call ..\env_noqt\Scripts\deactivate
