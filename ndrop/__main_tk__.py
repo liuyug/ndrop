@@ -35,9 +35,9 @@ logger = logging.getLogger(__name__)
 class GUIProgressBar(ttk.Progressbar):
     def __init__(self, parent, **kwargs):
         self.parent = parent
-        self.style = style = ttk.Style()
+        self.style = ttk.Style()
         # add label in the layout
-        style.layout(
+        self.style.layout(
             'text.Horizontal.TProgressbar',
             [
                 (
@@ -60,8 +60,6 @@ class GUIProgressBar(ttk.Progressbar):
         self.step_count = 0
         self.time_index = 0
         self.count = [0] * (1000 // self.interval)
-        self.speed = f'{human_size(sum(self.count)):>9}/s'
-        style.configure('text.Horizontal.TProgressbar', text=self.speed)
         self.parent.after(self.interval, self.on_timer_update)
 
     def on_timer_update(self):
@@ -72,11 +70,11 @@ class GUIProgressBar(ttk.Progressbar):
             self.step_count = 0
             # 0 ~ 9
             self.time_index = (self.time_index + 1) % (1000 // self.interval)
+            self.parent.on_progressbar_update_speed(self.speed)
 
     def update(self, step):
         self.step_count += step
         self.parent.on_progressbar_update(step)
-        self.style.configure('text.Horizontal.TProgressbar', text=self.speed)
 
     def write(self, message, file=None):
         logger.info(message)
@@ -367,10 +365,16 @@ class Client(ttk.Frame):
         if self.progress:
             if item[0] == 'step':
                 self.progress.step(item[1])
+            elif item[0] == 'speed':
+                self.progress.style.configure('text.Horizontal.TProgressbar', text=item[1])
             elif item[0] == 'close':
                 self.progress.destroy()
                 self.progress = None
                 self.status.set(f'{self.node["ip"]} - done - {item[1]}')
+
+    def on_progressbar_update_speed(self, speed):
+        self.queue.put_nowait(('speed', speed))
+        self.event_generate(self.virtual_event)
 
     def on_progressbar_update(self, step):
         self.queue.put_nowait(('step', step))
@@ -399,7 +403,7 @@ class Client(ttk.Frame):
                     self.image = NdropImage.get_os_image(self.node['operating_system'])
                     self.label_image.configure(image=self.image)
             else:
-                self.status.set('%(ip)s (%(mode)s)- ready' % self.node)
+                self.status.set('%(ip)s - ready' % self.node)
                 if self.node['operating_system'] != 'ip':
                     self.node['operating_system'] = 'ip'
                     self.image = NdropImage.get_os_image(self.node['operating_system'])
