@@ -361,9 +361,6 @@ class Client(ttk.Frame):
         for child in widget.children.values():
             bind_tree(child, event, callback)
 
-    def __str__(self):
-        return '%(mode)s@%(name)s(%(ip)s)' % self.node
-
     def queue_handler(self, event):
         item = self.queue.get_nowait()
         if getattr(self, 'progress'):
@@ -385,7 +382,7 @@ class Client(ttk.Frame):
     def click(self, event):
         owner = self.node.get('owner')
         if owner == 'self':
-            logger.info(self)
+            logger.info('%(mode)s@%(name)s(%(ip)s)' % self.node)
             return
 
         if owner == 'unknown':
@@ -521,8 +518,8 @@ class SendDialog(Dialog):
         self.mode = tk.StringVar()
         if parent.node['mode'] != '?':
             self.mode.set(parent.node['mode'])
-        self.parent_frame = parent
-        super().__init__(parent.master, title)
+        self.parent = parent
+        super().__init__(parent, title)
 
     def body(self, master):
         label = ttk.Label(master, text='IP:')
@@ -557,7 +554,7 @@ class SendDialog(Dialog):
         master.columnconfigure(1, weight=1)
         master.pack(fill=tk.BOTH)
 
-        if self.parent_frame.node.get('owner') != 'unknown':
+        if self.parent.node.get('owner') != 'unknown':
             entry.configure(state='disabled')
             combo.configure(state='disabled')
         if self.mode.get() == 'NitroShare':
@@ -578,7 +575,7 @@ class SendDialog(Dialog):
             self.btn_text.configure(state='normal')
 
     def send_text(self):
-        if self.parent_frame.node.get('owner') == 'unknown':
+        if self.parent.node.get('owner') == 'unknown':
             dest_ip = self.dest_ip.get()
             mode = self.mode.get()
             assert mode == 'Dukto'
@@ -586,41 +583,41 @@ class SendDialog(Dialog):
                 ipaddr = ipaddress.ip_address(dest_ip)
             except ValueError:
                 return
-            self.parent_frame.node['ip'] = str(ipaddr)
-            self.parent_frame.node['mode'] = mode
+            self.parent.node['ip'] = str(ipaddr)
+            self.parent.node['mode'] = mode
         text = self.textbox.get('1.0', 'end-1c')
         self.cancel()
-        self.parent_frame.send_text(text)
+        self.parent.send_text(text)
 
     def send_files(self):
-        if self.parent_frame.node.get('owner') == 'unknown':
+        if self.parent.node.get('owner') == 'unknown':
             dest_ip = self.dest_ip.get()
             mode = self.mode.get()
             try:
                 ipaddr = ipaddress.ip_address(dest_ip)
             except ValueError:
                 return
-            self.parent_frame.node['ip'] = str(ipaddr)
-            self.parent_frame.node['mode'] = mode
+            self.parent.node['ip'] = str(ipaddr)
+            self.parent.node['mode'] = mode
         files = askopenfilenames()
         if files:
             self.cancel()
-            self.parent_frame.send_files(files)
+            self.parent.send_files(files)
 
     def send_folder(self):
-        if self.parent_frame.node.get('owner') == 'unknown':
+        if self.parent.node.get('owner') == 'unknown':
             dest_ip = self.dest_ip.get()
             mode = self.mode.get()
             try:
                 ipaddr = ipaddress.ip_address(dest_ip)
             except ValueError:
                 return
-            self.parent_frame.node['ip'] = str(ipaddr)
-            self.parent_frame.node['mode'] = mode
+            self.parent.node['ip'] = str(ipaddr)
+            self.parent.node['mode'] = mode
         folder = askdirectory()
         if folder:
             self.cancel()
-            self.parent_frame.send_files([folder])
+            self.parent.send_files([folder])
 
 
 class HFSDialog(Dialog):
