@@ -302,6 +302,7 @@ class ScrolledWindow(ttk.Frame):
 
 class Client(ttk.Frame):
     node = None
+    progress = None
 
     def __init__(self, parent, node, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -317,8 +318,8 @@ class Client(ttk.Frame):
         self.style = ttk.Style()
         self.style.configure('client.TLabel', background='white')
 
-        label_image = ttk.Label(self, image=self.image, style='client.TLabel')
-        label_image.grid(row=0, column=0, rowspan=2, sticky='w')
+        self.label_image = ttk.Label(self, image=self.image, style='client.TLabel')
+        self.label_image.grid(row=0, column=0, rowspan=2, sticky='w')
 
         if node['mode'] == '?':
             text = f'{node.get("user")}\n@{node["name"]}'
@@ -363,7 +364,7 @@ class Client(ttk.Frame):
 
     def queue_handler(self, event):
         item = self.queue.get_nowait()
-        if getattr(self, 'progress'):
+        if self.progress:
             if item[0] == 'step':
                 self.progress.step(item[1])
             elif item[0] == 'close':
@@ -388,24 +389,21 @@ class Client(ttk.Frame):
         if owner == 'unknown':
             title = 'Send'
         else:
-            title = 'Send to %(ip)s [%(mode)s]' % self.node
-        dlg = SendDialog(self, title)
-
+            title = 'Send to %(ip)s (%(mode)s)' % self.node
+        SendDialog(self, title)
         if owner == 'unknown':
-            if dlg.result and dlg.result[0]:
-                try:
-                    ipaddr = ipaddress.ip_address(dlg.result[0])
-                    self.node['ip'] = str(ipaddr)
-                    self.node['mode'] = dlg.result[1]
-                    self.status.set(f'{self.node["ip"]} - ready')
-                except ValueError:
-                    self.node['ip'] = '?'
-                    self.node['mode'] = '?'
-                    self.status.set('ready')
-            elif self.node['ip'] == '?':
+            if self.node['ip'] == '?':
                 self.status.set('ready')
+                if self.node['operating_system'] != 'unknwon':
+                    self.node['operating_system'] = 'unknwon'
+                    self.image = NdropImage.get_os_image(self.node['operating_system'])
+                    self.label_image.configure(image=self.image)
             else:
-                self.status.set(f'{self.node["ip"]} - ready')
+                self.status.set('%(ip)s (%(mode)s)- ready' % self.node)
+                if self.node['operating_system'] != 'ip':
+                    self.node['operating_system'] = 'ip'
+                    self.image = NdropImage.get_os_image(self.node['operating_system'])
+                    self.label_image.configure(image=self.image)
         else:
             self.status.set(f'{self.node["ip"]} - ready')
 
@@ -574,50 +572,41 @@ class SendDialog(Dialog):
             self.textbox.configure(state='normal')
             self.btn_text.configure(state='normal')
 
-    def send_text(self):
+    def update_ip(self):
         if self.parent.node.get('owner') == 'unknown':
             dest_ip = self.dest_ip.get()
-            mode = self.mode.get()
-            assert mode == 'Dukto'
-            try:
-                ipaddr = ipaddress.ip_address(dest_ip)
-            except ValueError:
+            if dest_ip:
+                try:
+                    ipaddr = ipaddress.ip_address(dest_ip)
+                except ValueError:
+                    return
+                self.parent.node['ip'] = str(ipaddr)
+            else:
+                self.parent.node['ip'] = '?'
                 return
-            self.parent.node['ip'] = str(ipaddr)
+            mode = self.mode.get()
             self.parent.node['mode'] = mode
-        text = self.textbox.get('1.0', 'end-1c')
-        self.cancel()
-        self.parent.send_text(text)
+        return True
+
+    def send_text(self):
+        if self.update_ip():
+            text = self.textbox.get('1.0', 'end-1c')
+            self.cancel()
+            self.parent.send_text(text)
 
     def send_files(self):
-        if self.parent.node.get('owner') == 'unknown':
-            dest_ip = self.dest_ip.get()
-            mode = self.mode.get()
-            try:
-                ipaddr = ipaddress.ip_address(dest_ip)
-            except ValueError:
-                return
-            self.parent.node['ip'] = str(ipaddr)
-            self.parent.node['mode'] = mode
-        files = askopenfilenames()
-        if files:
-            self.cancel()
-            self.parent.send_files(files)
+        if self.update_ip():
+            files = askopenfilenames()
+            if files:
+                self.cancel()
+                self.parent.send_files(files)
 
     def send_folder(self):
-        if self.parent.node.get('owner') == 'unknown':
-            dest_ip = self.dest_ip.get()
-            mode = self.mode.get()
-            try:
-                ipaddr = ipaddress.ip_address(dest_ip)
-            except ValueError:
-                return
-            self.parent.node['ip'] = str(ipaddr)
-            self.parent.node['mode'] = mode
-        folder = askdirectory()
-        if folder:
-            self.cancel()
-            self.parent.send_files([folder])
+        if self.update_ip():
+            folder = askdirectory()
+            if folder:
+                self.cancel()
+                self.parent.send_files([folder])
 
 
 class HFSDialog(Dialog):
@@ -737,7 +726,7 @@ class GuiApp(tkdnd.Tk):
         unknown_node = {}
         unknown_node['user'] = 'IP connection'
         unknown_node['name'] = 'Send data to a remote device.'
-        unknown_node['operating_system'] = 'ip'
+        unknown_node['operating_system'] = 'unknown'
         unknown_node['mode'] = '?'
         unknown_node['ip'] = '?'
         unknown_node['owner'] = 'unknown'
@@ -807,13 +796,21 @@ class GuiApp(tkdnd.Tk):
         item = self.queue.get_nowait()
         if item[0] == 'add_node':
             node = item[1]
+            for client in self.frame.winfo_children():
+                if client.node.get('owner') is None and \
+                        client.node['ip'] == node['ip'] and \
+                        client.node['mode'] == node['mode']:
+                    return
             client = Client(self.frame, node)
             pad = (10, 5)
             client.grid(sticky='ew', padx=pad[0], pady=pad[1])
         elif item[0] == 'remove_node':
             node = item[1]
             for client in self.frame.winfo_children():
-                if client.node['user'] == node['user'] and client.node['name'] == node['name']:
+                if not client.progress and \
+                        client.node.get('owner') is None and \
+                        client.node['ip'] == node['ip'] and \
+                        client.node['mode'] == node['mode']:
                     client.destroy()
 
     def run(self):
