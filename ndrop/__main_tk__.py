@@ -10,6 +10,7 @@ import threading
 import queue
 import webbrowser
 import logging
+import ipaddress
 
 from PIL import Image, ImageTk
 import tkinterdnd2 as tkdnd
@@ -17,7 +18,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter.simpledialog import Dialog
 from tkinter.messagebox import showinfo
-from tkinter.filedialog import askdirectory
+from tkinter.filedialog import askdirectory, askopenfilenames
 from tkinter.scrolledtext import ScrolledText
 import appdirs
 
@@ -102,12 +103,10 @@ class GUINetDropServer(NetDropServer):
         return progress
 
     def add_node(self, node):
-        self.parent.queue.put_nowait(('add_node', node))
-        self.parent.event_generate('<<server_queue_event>>')
+        self.parent.on_add_node(node)
 
     def remove_node(self, node):
-        self.parent.queue.put_nowait(('remove_node', node))
-        self.parent.event_generate('<<server_queue_event>>')
+        self.parent.on_remove_node(node)
 
 
 class GUINetDropClient(NetDropClient):
@@ -343,7 +342,10 @@ class Client(ttk.Frame):
         self.rowconfigure(1, weight=1)
         self.columnconfigure(1, weight=1)
 
-        dnd_types = [tkdnd.DND_FILES, tkdnd.DND_TEXT]
+        if self.node['mode'] == 'NitroShare':
+            dnd_types = [tkdnd.DND_FILES]
+        else:
+            dnd_types = [tkdnd.DND_FILES, tkdnd.DND_TEXT]
 
         for widget in [self] + list(self.children.values()):
             widget.bind('<Button-1>', self.click)
@@ -381,22 +383,48 @@ class Client(ttk.Frame):
         self.event_generate(self.virtual_event)
 
     def click(self, event):
-        if self.node.get('owner') == 'unknown':
-            dlg = IPSendDialog(self.master, 'IP connection',
-                               ip=self.node['ip'],
-                               mode=self.node['mode'])
+        owner = self.node.get('owner')
+        if owner == 'self':
+            logger.info(self)
+            return
+
+        if owner == 'unknown':
+            title = 'Send'
+        else:
+            title = 'Send to %(ip)s [%(mode)s]' % self.node
+        dlg = SendDialog(self, title)
+
+        if owner == 'unknown':
             if dlg.result and dlg.result[0]:
-                self.node['ip'] = dlg.result[0]
-                self.node['mode'] = dlg.result[1]
+                try:
+                    ipaddr = ipaddress.ip_address(dlg.result[0])
+                    self.node['ip'] = str(ipaddr)
+                    self.node['mode'] = dlg.result[1]
+                    self.status.set(f'{self.node["ip"]} - ready')
+                except ValueError:
+                    self.node['ip'] = '?'
+                    self.node['mode'] = '?'
+                    self.status.set('ready')
+            elif self.node['ip'] == '?':
+                self.status.set('ready')
+            else:
                 self.status.set(f'{self.node["ip"]} - ready')
         else:
-            logger.info(self)
+            self.status.set(f'{self.node["ip"]} - ready')
+
+    def in_dnd_types(self, dnd_type, dnd_types):
+        for types in dnd_types:
+            if dnd_type in types:
+                return True
 
     def drop_position(self, event):
-        if self.node.get('owner') == 'self' or self.node.get('ip') == '?':
+        if self.node.get('owner') == 'self' or self.node['ip'] == '?':
             return tkdnd.REFUSE_DROP
-        else:
-            return event.action
+        if self.node['mode'] == 'NitroShare' and \
+                self.in_dnd_types('CF_UNICODETEXT', event.dnd_types) and \
+                self.in_dnd_types('CF_TEXT', event.dnd_types):
+            return tkdnd.REFUSE_DROP
+        return event.action
 
     def drop_enter(self, event):
         event.widget.focus_force()
@@ -485,55 +513,96 @@ class SettingDialog(Dialog):
             self.target_dir.set(os.path.normpath(folder))
 
 
-class IPSendDialog(Dialog):
-    def __init__(self, master, title=None, ip=None, mode=None, **kwargs):
+class SendDialog(Dialog):
+    def __init__(self, parent, title=None, **kwargs):
         self.dest_ip = tk.StringVar()
-        if ip and ip != '?':
-            self.dest_ip.set(ip)
+        if parent.node['ip'] != '?':
+            self.dest_ip.set(parent.node['ip'])
         self.mode = tk.StringVar()
-        if mode and mode != '?':
-            self.mode.set(mode)
-        super().__init__(master, title)
+        if parent.node['mode'] != '?':
+            self.mode.set(parent.node['mode'])
+        self.parent_frame = parent
+        super().__init__(parent.master, title)
 
     def body(self, master):
-        label = ttk.Label(master, text='IP Address:')
-        label.grid(row=0, column=0, sticky='w')
+        label = ttk.Label(master, text='IP:')
+        label.grid(row=0, column=0, sticky='w', padx=5, pady=5)
 
         entry = ttk.Entry(master, textvariable=self.dest_ip, width=20)
-        entry.grid(row=0, column=1, sticky='ew')
+        entry.grid(row=0, column=1, sticky='ew', padx=5, pady=5)
 
         label = ttk.Label(master, text='Mode:')
-        label.grid(row=1, column=0, sticky='w')
+        label.grid(row=0, column=2, sticky='w', padx=5, pady=5)
 
         choices = ['Dukto', 'NitroShare']
         if not self.mode.get():
             self.mode.set(choices[0])
-        combo = ttk.Combobox(master, values=choices, textvariable=self.mode, state="readonly")
-        combo.grid(row=1, column=1, sticky='ew')
+        combo = ttk.Combobox(master, values=choices, textvariable=self.mode, width=10, state="readonly")
+        combo.grid(row=0, column=3, sticky='ew', padx=5, pady=5)
+        combo.bind("<<ComboboxSelected>>", self.mode_selected)
+
+        self.textbox = ScrolledText(master, width=60, height=10)
+        self.textbox.grid(row=1, column=0, columnspan=4, sticky='ew', padx=5, pady=5)
+
+        self.btn_text = ttk.Button(master, text="Send TEXT", command=self.send_text)
+        self.btn_text.grid(row=2, column=0, columnspan=4, sticky='ew', padx=5, pady=5)
+
+        btn_files = ttk.Button(master, text="Send Files", command=self.send_files)
+        btn_files.grid(row=3, column=0, columnspan=4, sticky='ew', padx=5, pady=5)
 
         # master.rowconfigure(1, weight=1)
         master.columnconfigure(1, weight=1)
         master.pack(fill=tk.BOTH)
+
+        if self.parent_frame.node.get('owner') != 'unknown':
+            entry.configure(state='disabled')
+            combo.configure(state='disabled')
+        if self.mode.get() == 'NitroShare':
+            self.textbox.configure(state='disabled')
+            self.btn_text.configure(state='disabled')
+
         return entry
 
     def buttonbox(self):
-        """replace origin wdiget with ttk"""
-        box = ttk.Frame(self)
+        self.bind('<Escape>', self.cancel)
 
-        w = ttk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
-        w.pack(side=tk.LEFT, padx=5, pady=5)
-        w = ttk.Button(box, text="Cancel", width=10, command=self.cancel)
-        w.pack(side=tk.LEFT, padx=5, pady=5)
+    def mode_selected(self, event):
+        if self.mode.get() == 'NitroShare':
+            self.textbox.configure(state='disabled')
+            self.btn_text.configure(state='disabled')
+        else:
+            self.textbox.configure(state='normal')
+            self.btn_text.configure(state='normal')
 
-        self.bind("<Return>", self.ok)
-        self.bind("<Escape>", self.cancel)
+    def send_text(self):
+        if self.parent_frame.node.get('owner') == 'unknown':
+            dest_ip = self.dest_ip.get()
+            mode = self.mode.get()
+            assert mode == 'Dukto'
+            try:
+                ipaddr = ipaddress.ip_address(dest_ip)
+            except ValueError:
+                return
+            self.parent_frame.node['ip'] = str(ipaddr)
+            self.parent_frame.node['mode'] = mode
+        text = self.textbox.get('1.0', 'end-1c')
+        self.cancel()
+        self.parent_frame.send_text(text)
 
-        box.pack()
-
-    def apply(self):
-        dest_ip = self.dest_ip.get()
-        mode = self.mode.get()
-        self.result = (dest_ip, mode)
+    def send_files(self):
+        if self.parent_frame.node.get('owner') == 'unknown':
+            dest_ip = self.dest_ip.get()
+            mode = self.mode.get()
+            try:
+                ipaddr = ipaddress.ip_address(dest_ip)
+            except ValueError:
+                return
+            self.parent_frame.node['ip'] = str(ipaddr)
+            self.parent_frame.node['mode'] = mode
+        files = askopenfilenames()
+        if files:
+            self.cancel()
+            self.parent_frame.send_files(files)
 
 
 class HFSDialog(Dialog):
@@ -689,6 +758,14 @@ class GuiApp(tkdnd.Tk):
         self.columnconfigure(0, weight=1)
 
         self.bind('<<server_queue_event>>', self.queue_handler)
+
+    def on_add_node(self, node):
+        self.queue.put_nowait(('add_node', node))
+        self.event_generate('<<server_queue_event>>')
+
+    def on_remove_node(self, node):
+        self.queue.put_nowait(('remove_node', node))
+        self.event_generate('<<server_queue_event>>')
 
     def open_folder(self, event):
         webbrowser.open(gConfig.app['target_dir'])
