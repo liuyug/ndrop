@@ -2,8 +2,7 @@
 call ..\env_noqt\Scripts\activate
 
 rmdir build /s /q
-del dist\ndrop.exe /q
-
+rmdir dist\ndrop /s /q
 mkdir build
 
 set script=build\ndrop-script.py
@@ -13,9 +12,8 @@ echo import ndrop.__main__ >> %script%
 echo ndrop.__main__.run() >> %script%
 
 pyinstaller ^
---onefile ^
 --name ndrop ^
---exclude-module tkinter ^
+--icon ndrop\image\ndrop.ico ^
 --noconfirm ^
 %script%
 
@@ -24,7 +22,6 @@ echo import ndrop.__main_tk__ >> %scriptk%
 echo ndrop.__main_tk__.run() >> %scriptk%
 
 pyinstaller ^
---onefile ^
 --name ndroptk ^
 --icon ndrop\image\ndrop.ico ^
 --hidden-import tkinterdnd2 ^
@@ -35,6 +32,8 @@ pyinstaller ^
 %scriptk%
 
 del *.spec
-rem dist\ndrop.exe
+
+xcopy dist\ndroptk\* dist\ndrop /s /y
+rmdir dist\ndroptk /s /q
 
 call ..\env_noqt\Scripts\deactivate
