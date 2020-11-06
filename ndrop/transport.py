@@ -34,13 +34,6 @@ def human_size(size):
     return "%s %s" % (s, unit[i])
 
 
-def drop_ip(ip_addr):
-    exclude_ipaddr = ['127.0', '169.254']
-    for e_ip in exclude_ipaddr:
-        if ip_addr.startswith(e_ip):
-            return True
-
-
 def get_broadcast_address(ip_addr=None):
     ip_addrs = []
     broadcasts = []
@@ -63,35 +56,6 @@ def get_broadcast_address(ip_addr=None):
         else:
             return [], []
 
-    return ip_addrs, broadcasts
-
-
-def get_broadcast_address2(ip_addr=None):
-    import netifaces
-    ip_addrs = []
-    broadcasts = []
-    if not ip_addr or ip_addr == '0.0.0.0':
-        for ifname in netifaces.interfaces():
-            if_addr = netifaces.ifaddresses(ifname)
-            for addr in if_addr.get(socket.AF_INET, []):
-                ip_addr = addr.get('addr')
-                if drop_ip(ip_addr):
-                    continue
-                broadcast = addr.get('broadcast')
-                ip_addr and ip_addrs.append(ip_addr)
-                broadcast and broadcast not in broadcasts \
-                    and broadcasts.append(broadcast)
-    else:
-        for ifname in netifaces.interfaces():
-            if_addr = netifaces.ifaddresses(ifname)
-            for addr in if_addr.get(socket.AF_INET, []):
-                if ip_addr == addr.get('addr'):
-                    if drop_ip(ip_addr):
-                        continue
-                    ip_addrs.append(ip_addr)
-                    broadcast = addr.get('broadcast')
-                    broadcasts.append(broadcast)
-                    break
     return ip_addrs, broadcasts
 
 

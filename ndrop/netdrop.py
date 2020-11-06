@@ -139,6 +139,7 @@ class NetDropServer(NetDrop):
         logger.info('TEXT: %s' % text)
         self._file_io.close()
         self._file_io = None
+        return text
 
     def get_nodes(self):
         nodes = []

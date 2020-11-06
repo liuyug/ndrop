@@ -106,6 +106,11 @@ class GUINetDropServer(NetDropServer):
     def remove_node(self, node):
         self.parent.on_remove_node(node)
 
+    def recv_finish_text(self):
+        text = super().recv_finish_text()
+        self.parent.on_recv_text(text)
+        return text
+
 
 class GUINetDropClient(NetDropClient):
     def __init__(self, parent, ip, mode, cert=None, key=None):
@@ -613,6 +618,36 @@ class SendDialog(Dialog):
                 self.parent.send_files([folder])
 
 
+class MessageDialog(Dialog):
+    def __init__(self, master, title=None, message=None, **kwargs):
+        self.message = message
+        super().__init__(master, title)
+
+    def body(self, master):
+        textbox = ScrolledText(master)
+        textbox.insert('1.0', self.message)
+        textbox.grid(row=0, sticky='nsew')
+
+        master.rowconfigure(0, weight=1)
+        master.columnconfigure(0, weight=1)
+        master.pack(fill=tk.BOTH)
+
+    def buttonbox(self):
+        """replace origin wdiget with ttk"""
+        box = ttk.Frame(self)
+
+        w = ttk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.bind("<Return>", self.ok)
+        self.bind("<Escape>", self.cancel)
+
+        box.pack()
+
+    def apply(self):
+        self.result = None
+
+
 class HFSDialog(Dialog):
     def __init__(self, master, title=None, **kwargs):
         # Create a logging handler using a queue
@@ -775,6 +810,10 @@ class GuiApp(tkdnd.Tk):
         self.queue.put_nowait(('remove_node', node))
         self.event_generate('<<server_queue_event>>')
 
+    def on_recv_text(self, text):
+        self.queue.put_nowait(('recv_text', text))
+        self.event_generate('<<server_queue_event>>')
+
     def open_folder(self, event):
         webbrowser.open(gConfig.app['target_dir'])
 
@@ -816,6 +855,9 @@ class GuiApp(tkdnd.Tk):
                         client.node['ip'] == node['ip'] and \
                         client.node['mode'] == node['mode']:
                     client.destroy()
+        elif item[0] == 'recv_text':
+            text = item[1]
+            MessageDialog(self, title='Recv TEXT', message=text)
 
     def run(self):
         listen = '0.0.0.0'
