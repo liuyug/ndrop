@@ -546,7 +546,7 @@ class SendDialog(Dialog):
         combo.bind("<<ComboboxSelected>>", self.mode_selected)
 
         self.textbox = ScrolledText(master, width=60, height=10)
-        self.textbox.grid(row=1, column=0, columnspan=4, sticky='ew', padx=5, pady=5)
+        self.textbox.grid(row=1, column=0, columnspan=4, sticky='nsew', padx=5, pady=5)
 
         self.btn_text = ttk.Button(master, text="Send TEXT", command=self.send_text)
         self.btn_text.grid(row=2, column=0, columnspan=4, sticky='ew', padx=5, pady=5)
@@ -557,9 +557,9 @@ class SendDialog(Dialog):
         btn_folder = ttk.Button(master, text="Send Folder", command=self.send_folder)
         btn_folder.grid(row=4, column=0, columnspan=4, sticky='ew', padx=5, pady=5)
 
-        # master.rowconfigure(1, weight=1)
+        master.rowconfigure(1, weight=1)
         master.columnconfigure(1, weight=1)
-        master.pack(fill=tk.BOTH)
+        master.pack(fill=tk.BOTH, expand=1)
 
         if self.parent.node.get('owner') != 'unknown':
             entry.configure(state='disabled')
@@ -624,13 +624,13 @@ class MessageDialog(Dialog):
         super().__init__(master, title)
 
     def body(self, master):
-        textbox = ScrolledText(master)
+        textbox = ScrolledText(master, width=60, height=10)
         textbox.insert('1.0', self.message)
         textbox.grid(row=0, sticky='nsew')
 
         master.rowconfigure(0, weight=1)
         master.columnconfigure(0, weight=1)
-        master.pack(fill=tk.BOTH)
+        master.pack(fill=tk.BOTH, expand=1)
 
     def buttonbox(self):
         """replace origin wdiget with ttk"""
@@ -692,15 +692,15 @@ class HFSDialog(Dialog):
             self.master.after(100, self.poll_log_queue)
 
     def body(self, master):
-        self.scrolled_text = ScrolledText(master, state='disabled')
-        self.scrolled_text.grid(sticky='nsew')
+        self.scrolled_text = ScrolledText(master, width=60, height=10, state='disabled')
+        self.scrolled_text.grid(row=0, sticky='nsew')
+
         master.rowconfigure(0, weight=1)
         master.columnconfigure(0, weight=1)
-        master.pack(fill=tk.BOTH)
+        master.pack(fill=tk.BOTH, expand=1)
 
     def buttonbox(self):
         box = ttk.Frame(self)
-
         w = ttk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
         w.pack(side=tk.LEFT, padx=5, pady=5)
         self.bind("<Return>", self.ok)
