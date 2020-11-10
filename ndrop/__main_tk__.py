@@ -59,6 +59,7 @@ class GUIProgressBar(ttk.Progressbar):
         self.interval = 100
         self.step_count = 0
         self.time_index = 0
+        self.speed = ''
         self.count = [0] * (1000 // self.interval)
         self.parent.after(self.interval, self.on_timer_update)
 
@@ -81,6 +82,11 @@ class GUIProgressBar(ttk.Progressbar):
 
     def close(self):
         logger.info('done')
+        if not self.speed:
+            # transfer complete less than a second
+            self.count[self.time_index] = self.step_count
+            speed = sum(self.count) / (len([x for x in self.count if x != 0]) * self.interval / 1000)
+            self.speed = f'{human_size(speed):>9}/s'
         self.step_count = -1
         self.parent.on_progressbar_close(self.speed.strip())
 
