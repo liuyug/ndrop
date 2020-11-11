@@ -17,9 +17,10 @@
 !define EXEC_ICON "$INSTDIR\ndrop\image\ndrop.ico"
 ;
 !define DIST_PATH 'dist'
+!define /date NOW "%Y%m%d"
 
 Name "${PRODUCT_NAME}"
-OutFile "${DIST_PATH}\${PRODUCT_NAME}-${PRODUCT_VER}-setup.exe"
+OutFile "${DIST_PATH}\${PRODUCT_NAME}-${PRODUCT_VER}-${NOW}-setup.exe"
 
 ;--------------------------------
 SetCompressor lzma
@@ -32,7 +33,7 @@ InstallDir "$PROGRAMFILES64\ndrop"
 ShowInstDetails show
 ShowUninstDetails nevershow
 
-BrandingText "${PRODUCT_NAME} ${PRODUCT_VER}"
+BrandingText "${PRODUCT_NAME} ${PRODUCT_VER} ${NOW}"
 
 
 ;Interface Configuration
