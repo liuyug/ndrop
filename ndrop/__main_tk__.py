@@ -363,6 +363,7 @@ class Client(ttk.Frame):
         if self.node['mode'] == 'NitroShare':
             dnd_types = [tkdnd.DND_FILES]
         else:
+            # permit DND defaultly
             dnd_types = [tkdnd.DND_FILES, tkdnd.DND_TEXT]
 
         for widget in [self] + list(self.children.values()):
@@ -443,12 +444,9 @@ class Client(ttk.Frame):
 
     def drop_position(self, event):
         if self.agent:
+            # be trasfering
             return tkdnd.REFUSE_DROP
         if self.node.get('owner') == 'self' or self.node['ip'] == '?':
-            return tkdnd.REFUSE_DROP
-        if self.node['mode'] == 'NitroShare' and \
-                self.in_dnd_types('CF_UNICODETEXT', event.types) and \
-                self.in_dnd_types('CF_TEXT', event.types):
             return tkdnd.REFUSE_DROP
         return event.action
 
