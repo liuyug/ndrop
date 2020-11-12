@@ -172,12 +172,17 @@ class NetDropClient(NetDrop):
     _md5 = None
 
     def __init__(self, addr, mode=None, ssl_ck=None):
+        self.addr = addr
+        self.mode = mode
         if mode == 'dukto':
             self._transport = dukto.DuktoClient(self, addr, ssl_ck=ssl_ck)
         elif mode == 'nitroshare':
             self._transport = nitroshare.NitroshareClient(self, addr, ssl_ck=ssl_ck)
         else:
             raise ValueError('unknown mode: %s' % mode)
+
+    def __str__(self):
+        return '%s [%s]' % (self.addr, self.mode)
 
     def send_files(self, files):
         all_files = []

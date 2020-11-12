@@ -312,6 +312,7 @@ class ScrolledWindow(ttk.Frame):
 class Client(ttk.Frame):
     node = None
     progress = None
+    agent = None
 
     def __init__(self, parent, node, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -381,6 +382,7 @@ class Client(ttk.Frame):
             elif item[0] == 'close':
                 self.progress.destroy()
                 self.progress = None
+                self.agent = None
                 self.status.set(f'{self.node["ip"]} - done - {item[1]}')
 
     def on_progressbar_update_speed(self, speed):
@@ -396,6 +398,9 @@ class Client(ttk.Frame):
         self.event_generate(self.virtual_event)
 
     def click(self, event):
+        if self.agent:
+            logger.info('| => %(mode)s@%(name)s(%(ip)s)' % self.node)
+            return
         owner = self.node.get('owner')
         if owner == 'self':
             logger.info('%(mode)s@%(name)s(%(ip)s)' % self.node)
@@ -429,6 +434,8 @@ class Client(ttk.Frame):
                 return True
 
     def drop_position(self, event):
+        if self.agent:
+            return tkdnd.REFUSE_DROP
         if self.node.get('owner') == 'self' or self.node['ip'] == '?':
             return tkdnd.REFUSE_DROP
         if self.node['mode'] == 'NitroShare' and \
@@ -453,6 +460,8 @@ class Client(ttk.Frame):
             return tkdnd.COPY
 
     def send_text(self, text):
+        if self.agent:
+            return
         agent = GUINetDropClient(self, self.node['ip'], self.node['mode'])
         threading.Thread(
             name='Ndrop client',
@@ -461,10 +470,10 @@ class Client(ttk.Frame):
         ).start()
 
     def send_files(self, files):
-        agent = GUINetDropClient(self, self.node['ip'], self.node['mode'])
+        self.agent = GUINetDropClient(self, self.node['ip'], self.node['mode'])
         threading.Thread(
             name='Ndrop client',
-            target=agent.send_files,
+            target=self.agent.send_files,
             args=(files, ),
         ).start()
 
