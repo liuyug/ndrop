@@ -61,7 +61,7 @@ class NetDropServer(NetDrop):
                         transport.handle_request()
         except KeyboardInterrupt:
             for transport in self._transport:
-                transport.request_finish(transport._ip_addrs[0])
+                transport.request_finish(transport._ip_addrs[0], 'quit')
                 transport.quit_request()
             logger.info('\n-- Quit --')
 
@@ -125,11 +125,11 @@ class NetDropServer(NetDrop):
                     path += os.sep
                 self._bar.write('%s' % (path), file=sys.stderr)
 
-    def request_finish(self, from_addr, err=None):
+    def request_finish(self, from_addr, err):
         """interrupt current transport and finish immediately"""
         if self._bar is not None:
             self._bar.close()
-            logger.info('done')
+            logger.info(err)
             self._bar = None
 
     def recv_feed_text(self, data, from_addr):

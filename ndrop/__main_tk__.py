@@ -116,6 +116,10 @@ class GUINetDropServer(NetDropServer):
         self.parent.on_recv_text(text, from_addr)
         return text
 
+    def request_finish(self, from_addr, err):
+        self.parent.owner.result = (from_addr, err)
+        super().request_finish(from_addr, err)
+
 
 class GUINetDropClient(NetDropClient):
     def __init__(self, parent, ip, mode, cert=None, key=None):
@@ -382,7 +386,8 @@ class Client(ttk.Frame):
                 self.progress.destroy()
                 self.progress = None
                 self.agent = None
-                self.status.set(f'{self.node["ip"]} - done - {item[1]}')
+                from_addr, err = self.result
+                self.status.set(f'{self.node["ip"]} - {err} - {item[1]}')
 
     def on_progressbar_update_speed(self, speed):
         self.queue.put_nowait(('speed', speed))
@@ -939,7 +944,13 @@ class GuiApp(tkdnd.Tk):
                 if client.node.get('owner') is None and \
                         client.node['ip'] == node['ip'] and \
                         client.node['mode'] == node['mode']:
-                    return
+                    if client.node['name'] == 'Unknown' and \
+                            client.node['operating_system'] == 'ip' and \
+                            node['name'] != 'Unknown' and \
+                            node['operating_system'] != 'ip':
+                        client.destroy()
+                    else:
+                        return
             client = Client(self.frame, node)
             pad = (10, 5)
             client.grid(sticky='ew', padx=pad[0], pady=pad[1])
@@ -954,6 +965,15 @@ class GuiApp(tkdnd.Tk):
         elif item[0] == 'recv_text':
             text = item[1]
             from_addr = '%s:%s' % item[2]
+            # add node
+            recv_node = {}
+            recv_node['user'] = 'Unknown'
+            recv_node['name'] = 'Unknown'
+            recv_node['operating_system'] = 'ip'
+            recv_node['mode'] = 'Dukto'
+            recv_node['ip'] = item[2][0]
+            self.on_add_node(recv_node)
+
             message = f'{from_addr:21}: {text}'
             if not self.message_box:
                 self.message_box = MessageDialog(self, title='Recv TEXT')

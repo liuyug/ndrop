@@ -231,8 +231,10 @@ class DuktoPacket():
                     agent.recv_finish_file(self._filename, from_addr)
                 if self._recv_record == self._record and  \
                         self._total_recv_size == self._total_size:
+                    # transfer complete
                     self._status = STATUS['idle']
                     data.clear()
+                    return True
 
 
 class UDPHandler(socketserver.BaseRequestHandler):
@@ -253,17 +255,21 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         logger.info('[Dukto] connect from %s:%s' % self.client_address)
-        err = None
+        err = ''
         while True:
             try:
                 data = self.request.recv(CHUNK_SIZE)
                 if not data:
+                    err = 'abort'
                     break
                 self._recv_buff.extend(data)
-                self._packet.unpack_tcp(self.server.agent, self._recv_buff, self.client_address)
+                ret = self._packet.unpack_tcp(self.server.agent, self._recv_buff, self.client_address)
             except Exception as e:
                 err = e
                 logger.error('%s' % err)
+                break
+            if ret:
+                err = 'done'
                 break
         self.server.agent.request_finish(self.client_address, err)
 
@@ -379,7 +385,7 @@ class DuktoServer(Transport):
         else:
             self._owner.recv_finish_file(path, from_addr)
 
-    def request_finish(self, from_addr, err=None):
+    def request_finish(self, from_addr, err):
         self._owner.request_finish(from_addr, err)
 
     def send_broadcast(self, data, port):

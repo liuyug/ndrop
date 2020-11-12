@@ -265,11 +265,12 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         logger.info('[NitroShare] connect from %s:%s' % self.client_address)
-        err = None
+        err = ''
         while True:
             try:
                 data = self.request.recv(CHUNK_SIZE)
                 if not data:
+                    err = 'abort'
                     break
                 self._recv_buff.extend(data)
                 ret = self._packet.unpack_tcp(self.server.agent, self._recv_buff, self.client_address)
@@ -280,6 +281,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
             if ret:
                 data = self._packet.pack_success()
                 self.request.sendall(data)
+                err = 'done'
                 break
         self.server.agent.request_finish(self.client_address, err)
 
@@ -387,7 +389,7 @@ class NitroshareServer(Transport):
     def recv_finish_file(self, path):
         self._owner.recv_finish_file(path)
 
-    def request_finish(self, from_addr, err=None):
+    def request_finish(self, from_addr, err):
         self._owner.request_finish(from_addr, err)
 
     def send_broadcast(self, data, port):
