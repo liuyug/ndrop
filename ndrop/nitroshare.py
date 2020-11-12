@@ -42,7 +42,7 @@ class Packet():
     def pack_hello(self, node, dest):
         return json.dumps(node).encode('utf-8')
 
-    def unpack_udp(self, agent, client_address, data):
+    def unpack_udp(self, agent, data, client_address):
         node = json.loads(data.decode('utf-8'))
         if node['uuid'] != agent._node['uuid']:  # no me
             if client_address[0] in agent._nodes:
@@ -153,7 +153,7 @@ class Packet():
         if transfer_abort:
             sys.exit('Transfer Abort!!!')
 
-    def unpack_tcp(self, agent, data):
+    def unpack_tcp(self, agent, data, from_addr):
         while len(data) > 0:
             if self._status == STATUS['idle']:  # transfer header
                 size, typ = struct.unpack('<lb', data[:5])
@@ -209,8 +209,9 @@ class Packet():
                             self._filename, chunk,
                             self._recv_file_size, self._filesize,
                             self._total_recv_size, self._total_size,
+                            from_addr,
                         )
-                        agent.recv_finish_file(self._filename)
+                        agent.recv_finish_file(self._filename, from_addr)
                         if self._record == self._recv_record and  \
                                 self._total_recv_size == self._total_size:
                             self._status = STATUS['idle']
@@ -231,12 +232,13 @@ class Packet():
                         self._filename, data[5:5 + data_size],
                         self._recv_file_size, self._filesize,
                         self._total_recv_size, self._total_size,
+                        from_addr,
                     )
                     del data[:5 + data_size]
                     if self._recv_file_size == self._filesize:
                         self._status = STATUS['header']
                         self._recv_record += 1
-                        agent.recv_finish_file(self._filename)
+                        agent.recv_finish_file(self._filename, from_addr)
                     if self._record == self._recv_record and  \
                             self._total_recv_size == self._total_size:
                         self._status = STATUS['idle']
@@ -252,7 +254,7 @@ class UDPHandler(socketserver.BaseRequestHandler):
     def handle(self):
         if self.client_address[0] not in self.server.agent._ip_addrs:
             data = bytearray(self.request[0])
-            self._packet.unpack_udp(self.server.agent, self.client_address, data)
+            self._packet.unpack_udp(self.server.agent, data, self.client_address)
 
 
 class TCPHandler(socketserver.BaseRequestHandler):
@@ -269,7 +271,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 break
             self._recv_buff.extend(data)
             try:
-                ret = self._packet.unpack_tcp(self.server.agent, self._recv_buff)
+                ret = self._packet.unpack_tcp(self.server.agent, self._recv_buff, self.client_address)
             except Exception as e:
                 err = e
                 logger.error('%s' % err)
@@ -278,7 +280,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 data = self._packet.pack_success()
                 self.request.sendall(data)
                 break
-        self.server.agent.request_finish(err)
+        self.server.agent.request_finish(self.client_address, err)
 
     def finish(self):
         pass
@@ -384,8 +386,8 @@ class NitroshareServer(Transport):
     def recv_finish_file(self, path):
         self._owner.recv_finish_file(path)
 
-    def request_finish(self, err=None):
-        self._owner.request_finish(err)
+    def request_finish(self, from_addr, err=None):
+        self._owner.request_finish(from_addr, err)
 
     def send_broadcast(self, data, port):
         try:
@@ -503,7 +505,7 @@ class NitroshareClient(Transport):
                 if not chunk:
                     break
                 data.extend(chunk)
-            self._packet.unpack_tcp(self, data)
+            self._packet.unpack_tcp(self, data, self._address)
         except KeyboardInterrupt:
             pass
         except socket.timeout as e:

@@ -61,7 +61,7 @@ class DuktoPacket():
         data.extend(b'Bye Bye')
         return data
 
-    def unpack_udp(self, agent, client_address, data):
+    def unpack_udp(self, agent, data, client_address):
         """
         0x01    <broadcast>, hello
         0x02    <unicast>, hello
@@ -160,7 +160,7 @@ class DuktoPacket():
         if transfer_abort:
             sys.exit('Transfer Abort!!!')
 
-    def unpack_tcp(self, agent, data):
+    def unpack_tcp(self, agent, data, from_addr):
         while len(data) > 0:
             if self._status == STATUS['idle']:
                 value = data[:8]
@@ -202,8 +202,9 @@ class DuktoPacket():
                         self._filename, chunk,
                         self._recv_file_size, self._filesize,
                         self._total_recv_size, self._total_size,
+                        from_addr,
                     )
-                    agent.recv_finish_file(self._filename)
+                    agent.recv_finish_file(self._filename, from_addr)
                     self._recv_record += 1
                     if self._recv_record == self._record and  \
                             self._total_recv_size == self._total_size:
@@ -220,13 +221,14 @@ class DuktoPacket():
                     self._filename, data[:size],
                     self._recv_file_size, self._filesize,
                     self._total_recv_size, self._total_size,
+                    from_addr,
                 )
                 del data[:size]
 
                 if self._recv_file_size == self._filesize:
                     self._status = STATUS['filename']
                     self._recv_record += 1
-                    agent.recv_finish_file(self._filename)
+                    agent.recv_finish_file(self._filename, from_addr)
                 if self._recv_record == self._record and  \
                         self._total_recv_size == self._total_size:
                     self._status = STATUS['idle']
@@ -240,7 +242,7 @@ class UDPHandler(socketserver.BaseRequestHandler):
     def handle(self):
         if self.client_address[0] not in self.server.agent._ip_addrs:
             data = bytearray(self.request[0])
-            self._packet.unpack_udp(self.server.agent, self.client_address, data)
+            self._packet.unpack_udp(self.server.agent, data, self.client_address)
 
 
 class TCPHandler(socketserver.BaseRequestHandler):
@@ -257,11 +259,11 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 break
             self._recv_buff.extend(data)
             try:
-                self._packet.unpack_tcp(self.server.agent, self._recv_buff)
+                self._packet.unpack_tcp(self.server.agent, self._recv_buff, self.client_address)
             except Exception as err:
                 logger.error('%s' % err)
                 raise
-        self.server.agent.request_finish(err)
+        self.server.agent.request_finish(self.client_address, err)
 
     def finish(self):
         pass
@@ -356,21 +358,27 @@ class DuktoServer(Transport):
     def fileno(self):
         return self._tcp_server.fileno()
 
-    def recv_feed_file(self, path, data, recv_size, file_size, total_recv_size, total_size):
+    def recv_feed_file(self,
+                       path, data,
+                       recv_size, file_size,
+                       total_recv_size, total_size,
+                       from_addr):
         if path == TEXT_TAG:
-            self._owner.recv_feed_text(data)
+            self._owner.recv_feed_text(data, from_addr)
         else:
             self._owner.recv_feed_file(
-                path, data, recv_size, file_size, total_recv_size, total_size)
+                path, data,
+                recv_size, file_size,
+                total_recv_size, total_size, from_addr)
 
-    def recv_finish_file(self, path):
+    def recv_finish_file(self, path, from_addr):
         if path == TEXT_TAG:
-            self._owner.recv_finish_text()
+            self._owner.recv_finish_text(from_addr)
         else:
-            self._owner.recv_finish_file(path)
+            self._owner.recv_finish_file(path, from_addr)
 
-    def request_finish(self, err=None):
-        self._owner.request_finish(err)
+    def request_finish(self, from_addr, err=None):
+        self._owner.request_finish(from_addr, err)
 
     def send_broadcast(self, data, port):
         try:

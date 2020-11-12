@@ -61,7 +61,7 @@ class NetDropServer(NetDrop):
                         transport.handle_request()
         except KeyboardInterrupt:
             for transport in self._transport:
-                transport.request_finish()
+                transport.request_finish(transport._ip_addrs[0])
                 transport.quit_request()
             logger.info('\n-- Quit --')
 
@@ -79,8 +79,11 @@ class NetDropServer(NetDrop):
             self._read_only = True
             logger.warn('No permission to WRITE: %s' % self._drop_directory)
 
-    def recv_feed_file(
-            self, path, data, recv_size, file_size, total_recv_size, total_size):
+    def recv_feed_file(self,
+                       path, data,
+                       recv_size, file_size,
+                       total_recv_size, total_size,
+                       from_addr):
         if self._bar is None:   # create process bar for every transfer
             self._bar = self.init_bar(total_size)
         if not self._file_io:  # new file, directory
@@ -105,7 +108,7 @@ class NetDropServer(NetDrop):
         self._bar.update(len(data))
         self._md5.update(data)
 
-    def recv_finish_file(self, path):
+    def recv_finish_file(self, path, from_addr):
         if self._drop_directory == '-':
             self._file_io.flush()
         else:
@@ -122,18 +125,18 @@ class NetDropServer(NetDrop):
                     path += os.sep
                 self._bar.write('%s' % (path), file=sys.stderr)
 
-    def request_finish(self, err=None):
+    def request_finish(self, from_addr, err=None):
         """interrupt current transport and finish immediately"""
         if self._bar is not None:
             self._bar.close()
             self._bar = None
 
-    def recv_feed_text(self, data):
+    def recv_feed_text(self, data, from_addr):
         if not self._file_io:
             self._file_io = io.BytesIO()
         self._file_io.write(data)
 
-    def recv_finish_text(self):
+    def recv_finish_text(self, from_addr):
         data = self._file_io.getvalue()
         text = data.decode('utf-8')
         logger.info('TEXT: %s' % text)

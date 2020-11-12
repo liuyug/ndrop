@@ -16,7 +16,7 @@ from PIL import Image, ImageTk
 import tkinterdnd2 as tkdnd
 import tkinter as tk
 import tkinter.ttk as ttk
-from tkinter.simpledialog import Dialog
+from tkinter.simpledialog import Dialog as BaseDialog
 from tkinter.messagebox import showinfo
 from tkinter.filedialog import askdirectory, askopenfilenames
 from tkinter.scrolledtext import ScrolledText
@@ -112,9 +112,9 @@ class GUINetDropServer(NetDropServer):
     def remove_node(self, node):
         self.parent.on_remove_node(node)
 
-    def recv_finish_text(self):
-        text = super().recv_finish_text()
-        self.parent.on_recv_text(text)
+    def recv_finish_text(self, from_addr):
+        text = super().recv_finish_text(from_addr)
+        self.parent.on_recv_text(text, from_addr)
         return text
 
 
@@ -405,7 +405,8 @@ class Client(ttk.Frame):
             title = 'Send'
         else:
             title = 'Send to %(ip)s (%(mode)s)' % self.node
-        SendDialog(self, title)
+        dlg = SendDialog(self, title)
+        dlg.show()
         if owner == 'unknown':
             if self.node['ip'] == '?':
                 self.status.set('ready')
@@ -466,6 +467,64 @@ class Client(ttk.Frame):
             target=agent.send_files,
             args=(files, ),
         ).start()
+
+
+class Dialog(BaseDialog):
+    def __init__(self, parent, title=None):
+        tk.Toplevel.__init__(self, parent)
+
+        # remain invisible for now
+        self.withdraw()
+        # If the master is not viewable, don't
+        # make the child transient, or else it
+        # would be opened withdrawn
+        if parent.winfo_viewable():
+            self.transient(parent)
+
+        if title:
+            self.title(title)
+
+        self.parent = parent
+
+        self.result = None
+
+        body = ttk.Frame(self)
+        self.initial_focus = self.body(body)
+        body.pack(padx=5, pady=5)
+
+        self.buttonbox()
+
+        if not self.initial_focus:
+            self.initial_focus = self
+
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
+
+        if self.parent is not None:
+            self.geometry("+%d+%d" % (parent.winfo_rootx() + 50,
+                                      parent.winfo_rooty() + 50))
+
+    def show(self, modal=True):
+        if self.is_visible():
+            return
+        # become visible now
+        self.deiconify()
+        self.initial_focus.focus_set()
+        # wait for window to appear on screen before calling grab_set
+        self.wait_visibility()
+        self.grab_set()
+        if modal:
+            self.wait_window(self)
+
+    def hide(self):
+        if not self.is_visible():
+            return
+        self.withdraw()
+        self.grab_release()
+        if self.parent is not None:
+            self.parent.focus_set()
+
+    def is_visible(self):
+        return self.state() == 'normal'
 
 
 class SettingDialog(Dialog):
@@ -626,13 +685,36 @@ class SendDialog(Dialog):
 
 class MessageDialog(Dialog):
     def __init__(self, master, title=None, message=None, **kwargs):
-        self.message = message
         super().__init__(master, title)
 
+        self.master = master
+        self.message_queue = queue.Queue()
+        self.queue_handler = QueueHandler(self.message_queue)
+        if message:
+            self.message_queue.put_nowait(message)
+        self.master.after(100, self.poll_queue)
+
+    def display(self, message):
+        self.textbox.configure(state='normal')
+        self.textbox.insert(tk.END, message + '\n')
+        self.textbox.configure(state='disabled')
+        # Autoscroll to the bottom
+        self.textbox.yview(tk.END)
+
+    def poll_queue(self):
+        # Check every 100ms if there is a new message in the queue to display
+        while True:
+            try:
+                message = self.message_queue.get(block=False)
+            except queue.Empty:
+                break
+            else:
+                self.display(message)
+        self.master.after(100, self.poll_queue)
+
     def body(self, master):
-        textbox = ScrolledText(master, width=60, height=10)
-        textbox.insert('1.0', self.message)
-        textbox.grid(row=0, sticky='nsew')
+        self.textbox = ScrolledText(master, width=60, height=10, state='disabled')
+        self.textbox.grid(row=0, sticky='nsew')
 
         master.rowconfigure(0, weight=1)
         master.columnconfigure(0, weight=1)
@@ -642,16 +724,13 @@ class MessageDialog(Dialog):
         """replace origin wdiget with ttk"""
         box = ttk.Frame(self)
 
-        w = ttk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
+        w = ttk.Button(box, text="OK", width=10, command=self.hide, default=tk.ACTIVE)
         w.pack(side=tk.LEFT, padx=5, pady=5)
 
-        self.bind("<Return>", self.ok)
-        self.bind("<Escape>", self.cancel)
+        self.bind("<Return>", self.hide)
+        self.bind("<Escape>", self.hide)
 
         box.pack()
-
-    def apply(self):
-        self.result = None
 
 
 class HFSDialog(Dialog):
@@ -737,6 +816,7 @@ def bind_tree(widget, event, callback):
 class GuiApp(tkdnd.Tk):
     owner = None
     unknown_client = None
+    message_box = None
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -816,8 +896,8 @@ class GuiApp(tkdnd.Tk):
         self.queue.put_nowait(('remove_node', node))
         self.event_generate('<<server_queue_event>>')
 
-    def on_recv_text(self, text):
-        self.queue.put_nowait(('recv_text', text))
+    def on_recv_text(self, text, from_addr):
+        self.queue.put_nowait(('recv_text', text, from_addr))
         self.event_generate('<<server_queue_event>>')
 
     def open_folder(self, event):
@@ -829,6 +909,7 @@ class GuiApp(tkdnd.Tk):
             target_dir=gConfig.app['target_dir'],
             enable_hdpi=gConfig.app['enable_hdpi'],
         )
+        dlg.show()
         if dlg.result:
             target_dir, hdpi = dlg.result
             if gConfig.app['enable_hdpi'] != hdpi:
@@ -839,7 +920,8 @@ class GuiApp(tkdnd.Tk):
             self.server.saved_to(gConfig.app['target_dir'])
 
     def show_hfs(self, event):
-        HFSDialog(self, 'HFS')
+        dlg = HFSDialog(self, 'HFS')
+        dlg.show()
 
     def queue_handler(self, event):
         item = self.queue.get_nowait()
@@ -863,7 +945,12 @@ class GuiApp(tkdnd.Tk):
                     client.destroy()
         elif item[0] == 'recv_text':
             text = item[1]
-            MessageDialog(self, title='Recv TEXT', message=text)
+            from_addr = '%s:%s' % item[2]
+            message = f'{from_addr:21}: {text}'
+            if not self.message_box:
+                self.message_box = MessageDialog(self, title='Recv TEXT')
+            self.message_box.message_queue.put_nowait(message)
+            self.message_box.show(modal=False)
 
     def run(self):
         listen = '0.0.0.0'
