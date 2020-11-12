@@ -389,8 +389,8 @@ class NitroshareServer(Transport):
             path, data,
             recv_size, file_size, total_recv_size, total_size, from_addr)
 
-    def recv_finish_file(self, path):
-        self._owner.recv_finish_file(path)
+    def recv_finish_file(self, path, from_addr):
+        self._owner.recv_finish_file(path, from_addr)
 
     def recv_finish(self, from_addr, err):
         self._owner.recv_finish(from_addr, err)
