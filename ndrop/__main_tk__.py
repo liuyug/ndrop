@@ -446,8 +446,16 @@ class Client(ttk.Frame):
         if self.agent:
             # be trasfering
             return tkdnd.REFUSE_DROP
-        if self.node.get('owner') == 'self' or self.node['ip'] == '?':
+        if self.node.get('owner') == 'self':
             return tkdnd.REFUSE_DROP
+        if self.node.get('owner') == 'unknown':
+            if self.node['ip'] == '?':
+                return tkdnd.REFUSE_DROP
+            # deny dnd_text in unknown node for mode nitroshare
+            if self.node['mode'] == 'NitroShare' and \
+                    self.in_dnd_types('CF_UNICODETEXT', event.types) or \
+                    self.in_dnd_types('CF_TEXT', event.types):
+                return tkdnd.REFUSE_DROP
         return event.action
 
     def drop_enter(self, event):
