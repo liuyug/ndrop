@@ -249,20 +249,22 @@ class TCPHandler(socketserver.BaseRequestHandler):
     def setup(self):
         self._recv_buff = bytearray()
         self._packet = DuktoPacket()
+        self.request.settimeout(20)
 
     def handle(self):
         logger.info('[Dukto] connect from %s:%s' % self.client_address)
         err = None
         while True:
-            data = self.request.recv(CHUNK_SIZE)
-            if not data:
-                break
-            self._recv_buff.extend(data)
             try:
+                data = self.request.recv(CHUNK_SIZE)
+                if not data:
+                    break
+                self._recv_buff.extend(data)
                 self._packet.unpack_tcp(self.server.agent, self._recv_buff, self.client_address)
-            except Exception as err:
+            except Exception as e:
+                err = e
                 logger.error('%s' % err)
-                raise
+                break
         self.server.agent.request_finish(self.client_address, err)
 
     def finish(self):

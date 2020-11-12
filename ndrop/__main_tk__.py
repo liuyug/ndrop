@@ -81,7 +81,6 @@ class GUIProgressBar(ttk.Progressbar):
         logger.info(message)
 
     def close(self):
-        logger.info('done')
         if not self.speed:
             # transfer complete less than a second
             self.count[self.time_index] = self.step_count

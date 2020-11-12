@@ -129,6 +129,7 @@ class NetDropServer(NetDrop):
         """interrupt current transport and finish immediately"""
         if self._bar is not None:
             self._bar.close()
+            logger.info('done')
             self._bar = None
 
     def recv_feed_text(self, data, from_addr):
@@ -237,6 +238,7 @@ class NetDropClient(NetDrop):
     def send_finish(self, err=None):
         if self._bar is not None:
             self._bar.close()
+            logger.info('done')
             self._bar = None
 
     def send_text(self, text):
