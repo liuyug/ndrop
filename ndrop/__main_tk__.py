@@ -116,9 +116,9 @@ class GUINetDropServer(NetDropServer):
         self.parent.on_recv_text(text, from_addr)
         return text
 
-    def request_finish(self, from_addr, err):
+    def recv_finish(self, from_addr, err):
         self.parent.owner.result = (from_addr, err)
-        super().request_finish(from_addr, err)
+        super().recv_finish(from_addr, err)
 
 
 class GUINetDropClient(NetDropClient):
@@ -135,6 +135,10 @@ class GUINetDropClient(NetDropClient):
         progress.lift()
         self.parent.progress = progress
         return progress
+
+    def send_finish(self, err):
+        self.parent.result = (None, err)
+        super().send_finish(err)
 
 
 IMAGES = {
@@ -443,8 +447,8 @@ class Client(ttk.Frame):
         if self.node.get('owner') == 'self' or self.node['ip'] == '?':
             return tkdnd.REFUSE_DROP
         if self.node['mode'] == 'NitroShare' and \
-                self.in_dnd_types('CF_UNICODETEXT', event.dnd_types) and \
-                self.in_dnd_types('CF_TEXT', event.dnd_types):
+                self.in_dnd_types('CF_UNICODETEXT', event.types) and \
+                self.in_dnd_types('CF_TEXT', event.types):
             return tkdnd.REFUSE_DROP
         return event.action
 

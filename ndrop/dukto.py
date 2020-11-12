@@ -271,7 +271,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
             if ret:
                 err = 'done'
                 break
-        self.server.agent.request_finish(self.client_address, err)
+        self.server.agent.recv_finish(self.client_address, err)
 
     def finish(self):
         pass
@@ -385,8 +385,8 @@ class DuktoServer(Transport):
         else:
             self._owner.recv_finish_file(path, from_addr)
 
-    def request_finish(self, from_addr, err):
-        self._owner.request_finish(from_addr, err)
+    def recv_finish(self, from_addr, err):
+        self._owner.recv_finish(from_addr, err)
 
     def send_broadcast(self, data, port):
         try:
@@ -493,7 +493,7 @@ class DuktoClient(Transport):
             sock = ssl_context.wrap_socket(sock, server_side=False)
         data = self._packet.pack_text(text)
         sock.settimeout(self._timeout)
-        err = None
+        err = 'done'
         try:
             sock.connect(self._address)
             sock.sendall(data)
@@ -517,7 +517,7 @@ class DuktoClient(Transport):
             sock = ssl_context.wrap_socket(sock, server_side=False)
         header = self._packet.pack_files_header(len(files), total_size)
         sock.settimeout(self._timeout)
-        err = None
+        err = 'done'
         try:
             sock.connect(self._address)
             sock.sendall(header)
@@ -540,5 +540,5 @@ class DuktoClient(Transport):
     def send_finish_file(self, path):
         self._owner.send_finish_file(path)
 
-    def send_finish(self, err=None):
+    def send_finish(self, err):
         self._owner.send_finish(err)

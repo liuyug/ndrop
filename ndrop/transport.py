@@ -77,7 +77,7 @@ class Transport(object):
     def send_finish(self, err=None):
         pass
 
-    def request_finish(self, err=None):
+    def recv_finish(self, err=None):
         pass
 
     def recv_feed_file(self, path, data, recv_size, file_size, total_recv_size, total_size, from_addr):

@@ -283,7 +283,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 self.request.sendall(data)
                 err = 'done'
                 break
-        self.server.agent.request_finish(self.client_address, err)
+        self.server.agent.recv_finish(self.client_address, err)
 
     def finish(self):
         pass
@@ -382,15 +382,18 @@ class NitroshareServer(Transport):
     def fileno(self):
         return self._tcp_server.fileno()
 
-    def recv_feed_file(self, path, data, recv_size, file_size, total_recv_size, total_size):
+    def recv_feed_file(self, path, data,
+                       recv_size, file_size, total_recv_size, total_size,
+                       from_addr):
         self._owner.recv_feed_file(
-            path, data, recv_size, file_size, total_recv_size, total_size)
+            path, data,
+            recv_size, file_size, total_recv_size, total_size, from_addr)
 
     def recv_finish_file(self, path):
         self._owner.recv_finish_file(path)
 
-    def request_finish(self, from_addr, err):
-        self._owner.request_finish(from_addr, err)
+    def recv_finish(self, from_addr, err):
+        self._owner.recv_finish(from_addr, err)
 
     def send_broadcast(self, data, port):
         try:
@@ -493,7 +496,7 @@ class NitroshareClient(Transport):
 
         uname = platform.uname()
         sock.settimeout(self._timeout)
-        err = None
+        err = 'done'
         try:
             header = self._packet.pack_files_header(uname.node, total_size, len(files))
             sock.connect(self._address)
@@ -526,5 +529,5 @@ class NitroshareClient(Transport):
     def send_finish_file(self, path):
         self._owner.send_finish_file(path)
 
-    def send_finish(self, err=None):
+    def send_finish(self, err):
         self._owner.send_finish(err)
