@@ -293,7 +293,7 @@ class NitroshareServer(Transport):
     _name = 'NitroShare'
     _cert = None
     _key = None
-    _owner = None
+    _upper_level = None
     _tcp_server = None
     _udp_server = None
     _tcp_port = DEFAULT_TCP_PORT
@@ -308,10 +308,10 @@ class NitroshareServer(Transport):
     _loop_hello = True
     _hello_interval = 2
 
-    def __init__(self, owner, addr, ssl_ck=None):
+    def __init__(self, upper_level, addr, ssl_ck=None):
         if ssl_ck:
             self._cert, self._key = ssl_ck
-        self._owner = owner
+        self._upper_level = upper_level
         self._data = bytearray()
         addr = addr.split(':')
         ip = addr.pop(0)
@@ -385,15 +385,15 @@ class NitroshareServer(Transport):
     def recv_feed_file(self, path, data,
                        recv_size, file_size, total_recv_size, total_size,
                        from_addr):
-        self._owner.recv_feed_file(
+        self._upper_level.recv_feed_file(
             path, data,
             recv_size, file_size, total_recv_size, total_size, from_addr)
 
     def recv_finish_file(self, path, from_addr):
-        self._owner.recv_finish_file(path, from_addr)
+        self._upper_level.recv_finish_file(path, from_addr)
 
     def recv_finish(self, from_addr, err):
-        self._owner.recv_finish(from_addr, err)
+        self._upper_level.recv_finish(from_addr, err)
 
     def send_broadcast(self, data, port):
         try:
@@ -430,7 +430,8 @@ class NitroshareServer(Transport):
             self._nodes[ip]['user'] = self._name
             self._nodes[ip]['mode'] = self._name
             self._nodes[ip]['long_name'] = self.format_node(self._nodes[ip])
-            self._owner.add_node(self._nodes[ip])
+            self._nodes[ip]['type'] = 'guest'
+            self._upper_level.add_node(self._nodes[ip])
 
     def update_node(self, ip, node):
         now = datetime.datetime.now()
@@ -452,7 +453,7 @@ class NitroshareServer(Transport):
             self._nodes[ip]['user'] = self._name
             self._nodes[ip]['mode'] = self._name
             self._nodes[ip]['long_name'] = self.format_node(self._nodes[ip])
-            self._owner.remove_node(self._nodes[ip])
+            self._upper_level.remove_node(self._nodes[ip])
             del self._nodes[ip]
 
     def get_signature(self, node=None):
@@ -468,14 +469,14 @@ class NitroshareServer(Transport):
 class NitroshareClient(Transport):
     _cert = None
     _key = None
-    _owner = None
+    _upper_level = None
     _packet = None
     _timeout = 5
 
-    def __init__(self, owner, addr, ssl_ck=None):
+    def __init__(self, upper_level, addr, ssl_ck=None):
         if ssl_ck:
             self._cert, self._key = ssl_ck
-        self._owner = owner
+        self._upper_level = upper_level
         addr = addr.split(':')
         ip = addr.pop(0)
         if len(addr) > 0:
@@ -524,10 +525,10 @@ class NitroshareClient(Transport):
         self.send_finish(err)
 
     def send_feed_file(self, path, data, send_size, file_size, total_send_size, total_size):
-        self._owner.send_feed_file(path, data, send_size, file_size, total_send_size, total_size)
+        self._upper_level.send_feed_file(path, data, send_size, file_size, total_send_size, total_size)
 
     def send_finish_file(self, path):
-        self._owner.send_finish_file(path)
+        self._upper_level.send_finish_file(path)
 
     def send_finish(self, err):
-        self._owner.send_finish(err)
+        self._upper_level.send_finish(err)

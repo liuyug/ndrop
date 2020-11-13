@@ -97,18 +97,20 @@ class GUINetDropServer(NetDropServer):
 
     def init_bar(self, max_value):
         progress = GUIProgressBar(
-            self.parent.owner, orient=tk.HORIZONTAL,
+            self.parent.host_client, orient=tk.HORIZONTAL,
             maximum=max_value,
             mode='determinate')
         progress.grid(row=1, column=1, sticky='nsew')
         progress.lift()
-        self.parent.owner.progress = progress
+        self.parent.host_client.progress = progress
         return progress
 
     def add_node(self, node):
+        super().add_node(node)
         self.parent.on_add_node(node)
 
     def remove_node(self, node):
+        super().remove_node(node)
         self.parent.on_remove_node(node)
 
     def recv_finish_text(self, from_addr):
@@ -117,7 +119,7 @@ class GUINetDropServer(NetDropServer):
         return text
 
     def recv_finish(self, from_addr, err):
-        self.parent.owner.result = (from_addr, err)
+        self.parent.host_client.result = (from_addr, err)
         super().recv_finish(from_addr, err)
 
 
@@ -361,14 +363,14 @@ class Client(ttk.Frame):
         self.columnconfigure(1, weight=1)
 
         if self.node['mode'] == 'NitroShare':
-            dnd_types = [tkdnd.DND_FILES]
+            self.dnd_types = [tkdnd.DND_FILES]
         else:
             # permit DND defaultly
-            dnd_types = [tkdnd.DND_FILES, tkdnd.DND_TEXT]
+            self.dnd_types = [tkdnd.DND_FILES, tkdnd.DND_TEXT]
 
         for widget in [self] + list(self.children.values()):
             widget.bind('<Button-1>', self.click)
-            widget.drop_target_register(*dnd_types)
+            widget.drop_target_register(*self.dnd_types)
             widget.dnd_bind('<<DropEnter>>', self.drop_enter)
             widget.dnd_bind('<<DropPosition>>', self.drop_position)
             widget.dnd_bind('<<Drop:DND_Files>>', self.drop_files)
@@ -410,18 +412,17 @@ class Client(ttk.Frame):
         if self.agent:
             logger.info('| => %(mode)s@%(name)s(%(ip)s)' % self.node)
             return
-        owner = self.node.get('owner')
-        if owner == 'self':
+        if self.node['type'] == 'host':
             logger.info('%(mode)s@%(name)s(%(ip)s)' % self.node)
             return
 
-        if owner == 'unknown':
+        if self.node['type'] == 'ip':
             title = 'Send'
         else:
             title = 'Send to %(ip)s (%(mode)s)' % self.node
         dlg = SendDialog(self, title)
         dlg.show()
-        if owner == 'unknown':
+        if self.node['type'] == 'ip':
             if self.node['ip'] == '?':
                 self.status.set('ready')
                 if self.node['operating_system'] != 'unknwon':
@@ -446,16 +447,15 @@ class Client(ttk.Frame):
         if self.agent:
             # be trasfering
             return tkdnd.REFUSE_DROP
-        if self.node.get('owner') == 'self':
+        if self.node['type'] == 'host':
             return tkdnd.REFUSE_DROP
-        if self.node.get('owner') == 'unknown':
-            if self.node['ip'] == '?':
-                return tkdnd.REFUSE_DROP
-            # deny dnd_text in unknown node for mode nitroshare
-            if self.node['mode'] == 'NitroShare' and \
-                    self.in_dnd_types('CF_UNICODETEXT', event.types) or \
-                    self.in_dnd_types('CF_TEXT', event.types):
-                return tkdnd.REFUSE_DROP
+        if self.node['ip'] == '?':
+            return tkdnd.REFUSE_DROP
+        # deny dnd_text for mode nitroshare
+        if self.node['mode'] == 'NitroShare' and \
+                self.in_dnd_types('CF_UNICODETEXT', event.types) or \
+                self.in_dnd_types('CF_TEXT', event.types):
+            return tkdnd.REFUSE_DROP
         return event.action
 
     def drop_enter(self, event):
@@ -660,7 +660,7 @@ class SendDialog(Dialog):
         master.columnconfigure(1, weight=1)
         master.pack(fill=tk.BOTH, expand=1)
 
-        if self.parent.node.get('owner') != 'unknown':
+        if self.parent.node['ip'] != '?':
             entry.configure(state='disabled')
             combo.configure(state='disabled')
         if self.mode.get() == 'NitroShare':
@@ -681,7 +681,7 @@ class SendDialog(Dialog):
             self.btn_text.configure(state='normal')
 
     def update_ip(self):
-        if self.parent.node.get('owner') == 'unknown':
+        if self.parent.node['type'] == 'ip':
             dest_ip = self.dest_ip.get()
             if dest_ip:
                 try:
@@ -848,8 +848,8 @@ def bind_tree(widget, event, callback):
 
 
 class GuiApp(tkdnd.Tk):
-    owner = None
-    unknown_client = None
+    host_client = None
+    ip_client = None
     message_box = None
 
     def __init__(self, *args):
@@ -865,15 +865,15 @@ class GuiApp(tkdnd.Tk):
 
         uname = platform.uname()
         ipaddrs, _ = get_broadcast_address()
-        owner_node = {}
-        owner_node['user'] = 'You'
-        owner_node['name'] = uname.node
-        owner_node['operating_system'] = uname.system.lower()
-        owner_node['mode'] = '?'
-        owner_node['ip'] = ', '.join(ipaddrs)
-        owner_node['owner'] = 'self'
-        self.owner = Client(self, owner_node)
-        self.owner.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
+        host_node = {}
+        host_node['user'] = 'You'
+        host_node['name'] = uname.node
+        host_node['operating_system'] = uname.system.lower()
+        host_node['mode'] = '?'
+        host_node['ip'] = ', '.join(ipaddrs)
+        host_node['type'] = 'host'
+        self.host_client = Client(self, host_node)
+        self.host_client.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
 
         sep = ttk.Separator(self)
         sep.grid(row=1, column=0, sticky='ew', padx=40, pady=0)
@@ -882,15 +882,15 @@ class GuiApp(tkdnd.Tk):
         frame.grid(sticky='ewns')
         self.frame = frame.scrollwindow
 
-        unknown_node = {}
-        unknown_node['user'] = 'IP connection'
-        unknown_node['name'] = 'Send data to a remote device.'
-        unknown_node['operating_system'] = 'unknown'
-        unknown_node['mode'] = '?'
-        unknown_node['ip'] = '?'
-        unknown_node['owner'] = 'unknown'
-        self.unknown_client = Client(self.frame, unknown_node)
-        self.unknown_client.grid(sticky='ew', padx=10, pady=5)
+        ip_node = {}
+        ip_node['user'] = 'IP connection'
+        ip_node['name'] = 'Send data to a remote device.'
+        ip_node['operating_system'] = 'unknown'
+        ip_node['mode'] = '?'
+        ip_node['ip'] = '?'
+        ip_node['type'] = 'ip'
+        self.ip_client = Client(self.frame, ip_node)
+        self.ip_client.grid(sticky='ew', padx=10, pady=5)
 
         s = ttk.Style()
         s.configure('footer.TFrame', background='green')
@@ -964,13 +964,10 @@ class GuiApp(tkdnd.Tk):
         if item[0] == 'add_node':
             node = item[1]
             for client in self.frame.winfo_children():
-                if client.node.get('owner') is None and \
-                        client.node['ip'] == node['ip'] and \
+                if client.node['ip'] == node['ip'] and \
                         client.node['mode'] == node['mode']:
-                    if client.node['name'] == 'Unknown' and \
-                            client.node['operating_system'] == 'ip' and \
-                            node['name'] != 'Unknown' and \
-                            node['operating_system'] != 'ip':
+                    if client.node['type'] == 'text' and node['type'] == 'guest':
+                        # destroy text client and create guest client
                         client.destroy()
                     else:
                         return
@@ -981,7 +978,7 @@ class GuiApp(tkdnd.Tk):
             node = item[1]
             for client in self.frame.winfo_children():
                 if not client.progress and \
-                        client.node.get('owner') is None and \
+                        client.node['type'] == 'guest' and \
                         client.node['ip'] == node['ip'] and \
                         client.node['mode'] == node['mode']:
                     client.destroy()
@@ -996,6 +993,7 @@ class GuiApp(tkdnd.Tk):
                 recv_node['operating_system'] = 'ip'
                 recv_node['mode'] = 'Dukto'
                 recv_node['ip'] = item[2][0]
+                recv_node['type'] = 'text'
                 self.on_add_node(recv_node)
 
             message = f'{from_addr:21}: {text}'

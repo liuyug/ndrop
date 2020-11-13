@@ -429,6 +429,7 @@ class DuktoServer(Transport):
                 'name': info[2],
                 'operating_system': info[3].strip('()').lower(),
                 'mode': self._name,
+                'type': 'guest',
             }
             self._nodes[ip]['long_name'] = self.format_node(self._nodes[ip])
             self._upper_level.add_node(self._nodes[ip])
