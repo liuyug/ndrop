@@ -452,10 +452,10 @@ class Client(ttk.Frame):
         if self.node['ip'] == '?':
             return tkdnd.REFUSE_DROP
         # deny dnd_text for mode nitroshare
-        if self.node['mode'] == 'NitroShare' and \
-                self.in_dnd_types('CF_UNICODETEXT', event.types) or \
-                self.in_dnd_types('CF_TEXT', event.types):
-            return tkdnd.REFUSE_DROP
+        if self.node['mode'] == 'NitroShare':
+            if self.in_dnd_types('CF_UNICODETEXT', event.types) or \
+                    self.in_dnd_types('CF_TEXT', event.types):
+                return tkdnd.REFUSE_DROP
         return event.action
 
     def drop_enter(self, event):
