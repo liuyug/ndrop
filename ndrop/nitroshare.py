@@ -40,6 +40,12 @@ class Packet():
     _recv_file_size = 0
 
     def pack_hello(self, node, dest):
+        hello_node = {}
+        hello_node['uuid'] = node['uuid']
+        hello_node['name'] = node['name']
+        hello_node['operating_system'] = node['operating_system']
+        hello_node['port'] = node['port']
+        hello_node['uses_tls'] = node['uses_tls']
         return json.dumps(node).encode('utf-8')
 
     def unpack_udp(self, agent, data, client_address):
@@ -424,7 +430,8 @@ class NitroshareServer(Transport):
 
     def add_node(self, ip, node):
         if ip not in self._nodes:
-            self._nodes[ip] = node
+            self._nodes[ip] = {}
+            self._nodes[ip].update(node)
             self._nodes[ip]['ip'] = ip
             self._nodes[ip]['last_ping'] = datetime.datetime.now()
             self._nodes[ip]['user'] = self._name
@@ -435,24 +442,22 @@ class NitroshareServer(Transport):
 
     def update_node(self, ip, node):
         now = datetime.datetime.now()
-        self._nodes[ip] = node
+        assert ip in self._nodes
         self._nodes[ip]['last_ping'] = now
 
     def check_node(self):
         now = datetime.datetime.now()
         timeout_nodes = []
+        timeout = 10
         for ip, node in self._nodes.items():
-            if (now - datetime.timedelta(seconds=(self._hello_interval + 5))) > node['last_ping']:
+            last_valid_time = now - datetime.timedelta(seconds=(self._hello_interval + timeout))
+            if last_valid_time > node['last_ping']:
                 timeout_nodes.append(ip)
         for ip in timeout_nodes:
             self.remove_node(ip)
 
     def remove_node(self, ip):
         if ip in self._nodes:
-            self._nodes[ip]['ip'] = ip
-            self._nodes[ip]['user'] = self._name
-            self._nodes[ip]['mode'] = self._name
-            self._nodes[ip]['long_name'] = self.format_node(self._nodes[ip])
             self._upper_level.remove_node(self._nodes[ip])
             del self._nodes[ip]
 
