@@ -560,6 +560,9 @@ class SettingDialog(Dialog):
         self.hdpi = tk.IntVar()
         self.hdpi.set(hdpi)
 
+        node_by_text = 1 if kwargs.get('create_node_by_text') else 0
+        self.node_by_text = tk.IntVar()
+        self.node_by_text.set(node_by_text)
         super().__init__(master, title)
 
     def body(self, master):
@@ -575,6 +578,9 @@ class SettingDialog(Dialog):
 
         checkbox = ttk.Checkbutton(master, text='Enable HDPI', variable=self.hdpi)
         checkbox.grid(row=3, column=0, sticky='ew')
+
+        checkbox = ttk.Checkbutton(master, text='Create node by recving TEXT', variable=self.node_by_text)
+        checkbox.grid(row=4, column=0, sticky='ew')
 
         master.rowconfigure(1, weight=1)
         master.columnconfigure(0, weight=1)
@@ -597,7 +603,12 @@ class SettingDialog(Dialog):
     def apply(self):
         target_dir = self.target_dir.get()
         hdpi = self.hdpi.get()
-        self.result = os.path.normpath(target_dir), hdpi == 1
+        node_by_text = self.node_by_text.get()
+        self.result = (
+            os.path.normpath(target_dir),
+            hdpi == 1,
+            node_by_text == 1,
+        )
 
     def change_folder(self, event):
         folder = askdirectory(initialdir=self.target_dir.get())
@@ -931,14 +942,16 @@ class GuiApp(tkdnd.Tk):
             self, 'Settings',
             target_dir=gConfig.app['target_dir'],
             enable_hdpi=gConfig.app['enable_hdpi'],
+            create_node_by_text=gConfig.app['create_node_by_text'],
         )
         dlg.show()
         if dlg.result:
-            target_dir, hdpi = dlg.result
+            target_dir, hdpi, node_by_text = dlg.result
             if gConfig.app['enable_hdpi'] != hdpi:
                 showinfo('Information', 'Close and open app again for HDPI')
             gConfig.app['target_dir'] = target_dir
             gConfig.app['enable_hdpi'] = hdpi
+            gConfig.app['create_node_by_text'] = node_by_text
             save_config()
             self.server.saved_to(gConfig.app['target_dir'])
 
@@ -975,14 +988,15 @@ class GuiApp(tkdnd.Tk):
         elif item[0] == 'recv_text':
             text = item[1]
             from_addr = '%s:%s' % item[2]
-            # add node
-            recv_node = {}
-            recv_node['user'] = 'Unknown'
-            recv_node['name'] = 'Unknown'
-            recv_node['operating_system'] = 'ip'
-            recv_node['mode'] = 'Dukto'
-            recv_node['ip'] = item[2][0]
-            self.on_add_node(recv_node)
+            if gConfig.app['create_node_by_text']:
+                # add node
+                recv_node = {}
+                recv_node['user'] = 'Unknown'
+                recv_node['name'] = 'Unknown'
+                recv_node['operating_system'] = 'ip'
+                recv_node['mode'] = 'Dukto'
+                recv_node['ip'] = item[2][0]
+                self.on_add_node(recv_node)
 
             message = f'{from_addr:21}: {text}'
             if not self.message_box:

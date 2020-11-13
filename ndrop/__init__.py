@@ -28,7 +28,8 @@ def init_config(cfg_path=None):
         target_dir = os.path.join(os.path.expanduser('~'), 'Desktop')
         cfg_text = f"""[app]
 target_dir = {target_dir}
-enable_hdpi = false
+enable_hdpi = False
+create_node_by_text = True
 """
 
         dir_name = os.path.dirname(cfg_path)
@@ -44,6 +45,7 @@ enable_hdpi = false
         for k, v in config.items(section):
             getattr(gConfig, section)[k] = v
     gConfig.app['enable_hdpi'] = gConfig.app.get('enable_hdpi') == 'True'
+    gConfig.app['create_node_by_text'] = gConfig.app.get('create_node_by_text') == 'True'
 
 
 def save_config(cfg_path=None):
