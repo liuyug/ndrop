@@ -171,7 +171,7 @@ class NdropImage():
 
         fore_path = os.path.join(
             image_dir,
-            IMAGES.get(name) or IMAGES['unknown']
+            IMAGES.get(name.lower()) or IMAGES['unknown']
         )
         fore_im = Image.open(fore_path)
 
@@ -184,7 +184,7 @@ class NdropImage():
     def get_image(cls, name, background=None):
         image_dir = os.path.join(os.path.dirname(__file__), 'image')
 
-        fore_path = os.path.join(image_dir, IMAGES[name])
+        fore_path = os.path.join(image_dir, IMAGES[name.lower()])
         fore_im = Image.open(fore_path)
 
         background = background or 'white'
@@ -425,8 +425,8 @@ class Client(ttk.Frame):
         if self.node['type'] == 'ip':
             if self.node['ip'] == '?':
                 self.status.set('ready')
-                if self.node['operating_system'] != 'unknwon':
-                    self.node['operating_system'] = 'unknwon'
+                if self.node['operating_system'] != 'Unknwon':
+                    self.node['operating_system'] = 'Unknwon'
                     self.image = NdropImage.get_os_image(self.node['operating_system'])
                     self.label_image.configure(image=self.image)
             else:
@@ -868,7 +868,7 @@ class GuiApp(tkdnd.Tk):
         host_node = {}
         host_node['user'] = 'You'
         host_node['name'] = uname.node
-        host_node['operating_system'] = uname.system.lower()
+        host_node['operating_system'] = uname.system
         host_node['mode'] = '?'
         host_node['ip'] = ', '.join(ipaddrs)
         host_node['type'] = 'host'
@@ -885,7 +885,7 @@ class GuiApp(tkdnd.Tk):
         ip_node = {}
         ip_node['user'] = 'IP connection'
         ip_node['name'] = 'Send data to a remote device.'
-        ip_node['operating_system'] = 'unknown'
+        ip_node['operating_system'] = 'Unknown'
         ip_node['mode'] = '?'
         ip_node['ip'] = '?'
         ip_node['type'] = 'ip'
