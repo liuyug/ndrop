@@ -148,6 +148,7 @@ IMAGES = {
     'pc': 'PcLogo.png',
     'android': 'AndroidLogo.png',
     'apple': 'AppleLogo.png',
+    'darwin': 'AppleLogo.png',
     'blackberry': 'BlackberryLogo.png',
     'ip': 'IpLogo.png',
     'linux': 'LinuxLogo.png',
