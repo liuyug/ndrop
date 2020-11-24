@@ -10,7 +10,8 @@
 ;General
 ;file encoding must be UTF-8 BOM
 !define PRODUCT_NAME "ndrop"
-!define PRODUCT_VER "1.5.5"
+; delivery version from cli
+;!define PRODUCT_VER "1.5.5"
 !define SHORTCUT_APP_NAME "${PRODUCT_NAME}.lnk"
 !define SHORTCUT_UNINSTALL_NAME "${PRODUCT_NAME}_Uninstall.lnk"
 !define EXEC_NAME "ndroptk.exe"
