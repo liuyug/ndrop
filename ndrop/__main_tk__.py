@@ -661,7 +661,7 @@ class SendDialog(Dialog):
         master.columnconfigure(1, weight=1)
         master.pack(fill=tk.BOTH, expand=1)
 
-        if self.parent.node['ip'] != '?':
+        if self.parent.node['type'] == 'guest':
             entry.configure(state='disabled')
             combo.configure(state='disabled')
         if self.mode.get() == 'NitroShare':
