@@ -1,6 +1,6 @@
 
 name = 'ndrop'
-version = '1.5.6'
+version = '1.5.7'
 author = 'Yugang LIU'
 email = 'liuyug@gmail.com'
 url = 'https://github.com/liuyug/ndrop.git'
