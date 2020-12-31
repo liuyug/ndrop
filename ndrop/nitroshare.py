@@ -109,8 +109,11 @@ class Packet():
             data.extend((len(bdata) + 1).to_bytes(4, byteorder='little', signed=True))
             data.append(0x02)
             data.extend(bdata)
-            send_size = 0
+            if len(data) >= CHUNK_SIZE:
+                yield data[:CHUNK_SIZE]
+                del data[:CHUNK_SIZE]
 
+            send_size = 0
             if size < 0:    # directory
                 agent.send_feed_file(
                     name, None,
@@ -125,7 +128,7 @@ class Packet():
                 file_changed = False
                 with open(path, 'rb') as f:
                     while not file_changed:
-                        chunk = f.read(CHUNK_SIZE - len(data) - 5)
+                        chunk = f.read(CHUNK_SIZE - len(data))
                         if not chunk:
                             break
                         if (send_size + len(chunk)) > size:
@@ -162,11 +165,16 @@ class Packet():
     def unpack_tcp(self, agent, data, from_addr):
         while len(data) > 0:
             if self._status == STATUS['idle']:  # transfer header
+                if len(data) < 5:
+                    return
                 size, typ = struct.unpack('<lb', data[:5])
-                size -= 1
-                if size > len(data):
+                # 4    1   ...
+                # size tag data
+                # size = sizeof(tag + data)
+                if size > (len(data) - 4):
                     return
                 del data[:5]
+                size -= 1
                 if size == 0 and typ == 0x00:
                     return
                 elif size > 0 and typ == 0x01:
@@ -183,11 +191,13 @@ class Packet():
                     self._record = int(jdata['count'])
                     self._status = STATUS['header']
             elif self._status == STATUS['header']:  # json, file header
+                if len(data) < 5:
+                    return
                 size, typ = struct.unpack('<lb', data[:5])
-                size -= 1
-                if size > len(data):
+                if size > (len(data) - 4):
                     return
                 del data[:5]
+                size -= 1
                 if typ == 0x02:   # json
                     jdata = json.loads(data[:size])
                     del data[:size]
@@ -224,10 +234,12 @@ class Packet():
                 else:
                     raise ValueError('Error Type: %s' % typ)
             elif self._status == STATUS['data']:
-                size, typ = struct.unpack('<lb', data[:5])
-                data_size = size - 1
-                if data_size > (len(data) - 5):    # wait for more packet data
+                if len(data) < 5:
                     return
+                size, typ = struct.unpack('<lb', data[:5])
+                if size > (len(data) - 4):    # wait for more packet data
+                    return
+                data_size = size - 1
                 if typ == 0x03:   # data
                     self._recv_file_size += data_size
                     self._total_recv_size += data_size
