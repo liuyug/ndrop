@@ -194,10 +194,7 @@ class Packet():
                     if 'directory' not in jdata:  # file header
                         raise ValueError('Error: %s' % jdata)
                     self._recv_file_size = 0
-                    if sys.platform == 'win32':
-                        self._filename = jdata['name'].replace('/', '\\')
-                    else:
-                        self._filename = jdata['name'].replace('\\', '/')
+                    self._filename = jdata['name']
                     if jdata['directory']:  # directory
                         self._filesize = -1
                     else:

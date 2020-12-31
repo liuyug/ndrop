@@ -87,6 +87,8 @@ class NetDropServer(NetDrop):
         if self._bar is None:   # create process bar for every transfer
             self._bar = self.init_bar(total_size)
         if not self._file_io:  # new file, directory
+            # use current platform sep
+            path = path.replace('/', os.sep)
             if self._drop_directory == '-':
                 self._file_io = sys.stdout.buffer
             elif self._read_only:
@@ -112,6 +114,7 @@ class NetDropServer(NetDrop):
         if self._drop_directory == '-':
             self._file_io.flush()
         else:
+            path = path.replace('/', os.sep)
             if self._file_io:
                 self._file_io.close()
                 self._file_io = None
@@ -205,11 +208,14 @@ class NetDropClient(NetDrop):
                     for name in dirs:
                         sub_abs_path = os.path.join(root, name)
                         rel_path = os.path.relpath(sub_abs_path, base_path)
+                        # path format: \path\file.txt in all platforms
+                        rel_path = rel_path.replace('\\', '/')
                         all_files.append((sub_abs_path, rel_path, -1))
 
                     for name in files:
                         sub_abs_path = os.path.join(root, name)
                         rel_path = os.path.relpath(sub_abs_path, base_path)
+                        rel_path = rel_path.replace('\\', '/')
                         size = os.path.getsize(sub_abs_path)
                         total_size += size
                         all_files.append((sub_abs_path, rel_path, size))
@@ -231,8 +237,8 @@ class NetDropClient(NetDrop):
             self._md5 = None
             self._bar.write('%s  %s' % (digest, path), file=sys.stderr)
         else:  # directory
-            if not path.endswith(os.sep):
-                path += os.sep
+            if not path.endswith('/'):
+                path += '/'
             self._bar.write('%s' % (path), file=sys.stderr)
 
     def send_finish(self, err):
