@@ -26,6 +26,9 @@ def run():
         version=about.banner,
         help='about')
 
+    parser.add_argument(
+        '--gui', action='store_true', help='run with Tkinter GUI')
+
     group = parser.add_argument_group('Transport Layer Security. TLS/SSL')
     group.add_argument('--cert', metavar='<cert file>', help='cert file.')
     group.add_argument('--key', metavar='<key file>', help='key file.')
@@ -68,6 +71,11 @@ def run():
                        ' "PARAM" is message')
 
     args = parser.parse_args()
+
+    if args.gui:
+        from .__main_tk__ import run as run_gui
+        run_gui()
+        return
 
     app_logger = logging.getLogger(__name__.rpartition('.')[0])
     app_logger.setLevel(logging.INFO)

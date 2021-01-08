@@ -38,7 +38,6 @@ setup(
     entry_points={
         'console_scripts': [
             '%s = ndrop.__main__:run' % about.name,
-            '%stk_cli = ndrop.__main_tk__:run' % about.name,
         ],
         'gui_scripts': [
             '%stk = ndrop.__main_tk__:run' % about.name,

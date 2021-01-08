@@ -1021,20 +1021,8 @@ class GuiApp(tkdnd.Tk):
 
 
 def run():
-    description = '%s\n%s' % (about.description, about.detail)
-    parser = argparse.ArgumentParser(prog=about.name, description=description)
-    parser.add_argument(
-        '--version', action='version',
-        version=about.banner,
-        help='about')
-
-    parser.add_argument('saved_dir', nargs='?', metavar='<saved_dir>', help='Saved directory.')
-    args = parser.parse_args()
-
     print(about.banner)
     init_config()
-    if args.saved_dir:
-        gConfig.app['target_dir'] = os.path.normpath(os.path.realpath(args.saved_dir))
     app_logger = logging.getLogger(__name__.rpartition('.')[0])
     app_logger.setLevel(logging.INFO)
 
