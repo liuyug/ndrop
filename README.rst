@@ -3,6 +3,8 @@ NDrop
 =====
 a File Transfer Tool. compatible "Dukto_" and "NitroShare_", support "HFS_"
 
+.. image:: ndroptk.png
+
 Feature
 =======
 +   Just drop. No authentication, no authorize, use in trusted network.
