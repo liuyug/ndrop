@@ -130,6 +130,9 @@ class Packet():
                     while not file_changed:
                         chunk = f.read(CHUNK_SIZE - len(data))
                         if not chunk:
+                            if (len(data) + 128) >= CHUNK_SIZE:
+                                yield data[:CHUNK_SIZE]
+                                del data[:CHUNK_SIZE]
                             break
                         if (send_size + len(chunk)) > size:
                             file_changed = True
@@ -281,6 +284,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
     def handle(self):
         logger.info('[NitroShare] connect from %s:%s' % self.client_address)
         err = ''
+        ret = None
         while True:
             try:
                 data = self.request.recv(CHUNK_SIZE)
@@ -298,6 +302,8 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 self.request.sendall(data)
                 err = 'done'
                 break
+        if err == 'abort':
+            self.server.agent.recv_finish_file(self._packet._filename, self.client_address, err)
         self.server.agent.recv_finish(self.client_address, err)
 
     def finish(self):
