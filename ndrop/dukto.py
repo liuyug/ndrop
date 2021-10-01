@@ -276,7 +276,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 err = 'done'
                 break
         if err == 'abort':
-            self.server.agent.recv_finish_file(self._packet._filename, self.client_address, err)
+            self.server.agent.recv_finish_file(self._packet._filename, self.client_address)
         self.server.agent.recv_finish(self.client_address, err)
 
     def finish(self):
