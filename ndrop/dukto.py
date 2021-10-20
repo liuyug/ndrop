@@ -130,13 +130,12 @@ class DuktoPacket():
                 file_changed = False
                 with open(path, 'rb') as f:
                     while not file_changed:
+                        if len(data) >= CHUNK_SIZE:
+                            yield data[:CHUNK_SIZE]
+                            del data[:CHUNK_SIZE]
                         chunk = f.read(CHUNK_SIZE - len(data))
-
                         # next file
                         if not chunk:
-                            if (len(data) + 128) >= CHUNK_SIZE:
-                                yield data[:CHUNK_SIZE]
-                                del data[:CHUNK_SIZE]
                             break
 
                         if (send_size + len(chunk)) > size:
@@ -154,9 +153,6 @@ class DuktoPacket():
                             send_size, size, total_send_size, total_size,
                         )
                         data.extend(chunk)
-                        if len(data) >= CHUNK_SIZE:
-                            yield data[:CHUNK_SIZE]
-                            del data[:CHUNK_SIZE]
             agent.send_finish_file(name)
             if transfer_abort:
                 break
