@@ -193,6 +193,9 @@ class NetDropClient(NetDrop):
         total_size = 0
         for f in files:
             abs_path = os.path.abspath(f)
+            if not os.path.exists(abs_path):
+                logger.warn(f'Not found "{abs_path}".')
+                continue
             base_path = os.path.dirname(abs_path)
             rel_path = os.path.relpath(abs_path, base_path)
 
@@ -220,9 +223,10 @@ class NetDropClient(NetDrop):
                         total_size += size
                         all_files.append((sub_abs_path, rel_path, size))
 
-        # always create process bar
-        self._bar = self.init_bar(total_size)
-        self._transport.send_files(total_size, all_files)
+        if all_files:
+            # always create process bar
+            self._bar = self.init_bar(total_size)
+            self._transport.send_files(total_size, all_files)
 
     def send_feed_file(self, path, data, send_size, file_size, total_send_size, total_size):
         if file_size > -1:
