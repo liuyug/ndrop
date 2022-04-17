@@ -1,4 +1,5 @@
 
+import os
 import sys
 import time
 import argparse
@@ -27,7 +28,9 @@ def run():
         help='about')
 
     parser.add_argument(
-        '--gui', action='store_true', help='run with Tkinter GUI')
+        '--gui-tk', action='store_true', help='run with GUI Tkinter')
+    parser.add_argument(
+        '--gui', action='store_true', help='run with GUI Kivy')
 
     group = parser.add_argument_group('Transport Layer Security. TLS/SSL')
     group.add_argument('--cert', metavar='<cert file>', help='cert file.')
@@ -72,8 +75,13 @@ def run():
 
     args = parser.parse_args()
 
-    if args.gui:
+    if args.gui_tk:
         from .__main_tk__ import run as run_gui
+        run_gui()
+        return
+    if args.gui:
+        os.environ['KIVY_NO_ARGS'] = '1'
+        from .__main_kivy__ import run as run_gui
         run_gui()
         return
 

@@ -1,0 +1,331 @@
+# canvas.before:
+#     Color:
+#         rgba: 1, 0, 0, 1
+#     Line:
+#         rectangle: self.x, self.y, self.width, self.height
+
+#:import join os.path.join
+#:set default_height '30dp'
+#:set label_font_size '14sp'
+<GUIProgressBar>:
+<ButtonLabel>:
+<CheckLabelBox>:
+    active: True
+    text: 'checkbox'
+    CheckBox:
+        id: cb
+        active: root.active
+        size_hint: None, 1
+        width: '20dp'
+        halign: 'left'
+        on_active: root.on_checkbox_active(cb)
+    ButtonLabel:
+        text: root.text
+        color: 0, 0, 0, 1
+        text_size: self.size
+        size: self.texture_size
+        padding_x: 5
+        halign: 'left'
+        valign: 'middle'
+        on_press: root.on_label_click(cb)
+<ImageButton@Button>:
+    size_hint: None, None
+    size: dp(40), dp(40)
+    pos_hint: {'center_x':.5, 'center_y': .5}
+<FileChooserWidget>:
+    path: ''
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserListView:
+            id: filechooser
+            show_hidden: False
+            multiselect: True
+        BoxLayout:
+            size_hint_y: None
+            height: default_height
+            BoxLayout:
+            Button:
+                text: "Cancel"
+                on_release: root.cancel()
+            Button:
+                text: "Select"
+                on_release: root.select(filechooser.path, filechooser.selection)
+            BoxLayout:
+<SendWidget>:
+    orientation: "vertical"
+    padding: dp(5)
+    spacing: dp(5)
+    BoxLayout:
+        size_hint: 1, None
+        height: default_height
+        spacing: dp(5)
+        Label:
+            text: 'IP:'
+            color: 0, 0, 0, 1
+            size_hint: None, None
+            size: dp(20), default_height
+            halign: 'left'
+            valign: 'middle'
+        TextInput:
+            id: ip
+            size_hint: 1, 1
+            on_text: root.on_input_text(ip)
+    BoxLayout:
+        size_hint: 1, None
+        height: default_height
+        spacing: dp(5)
+        Label:
+            text: 'Mode:'
+            color: 0, 0, 0, 1
+            size_hint: None, None
+            size: dp(50), default_height
+            halign: 'left'
+            valign: 'middle'
+        CheckBox:
+            id: dukto
+            text: 'dukto'
+            active: True
+            group: 'mode'
+            size_hint: None, None
+            size: dp(20), default_height
+            on_active: root.on_checkbox_active(self)
+        ButtonLabel:
+            text: 'Dukto'
+            color: 0, 0, 0, 1
+            text_size: self.size
+            size: self.texture_size
+            halign: 'left'
+            valign: 'middle'
+            on_press: root.on_checkbox_press(dukto)
+        CheckBox:
+            id: nitroshare
+            text: 'nitroshare'
+            group: 'mode'
+            size_hint: None, None
+            size: dp(20), default_height
+            on_active: root.on_checkbox_active(self)
+        ButtonLabel:
+            text: 'NitroShare'
+            color: 0, 0, 0, 1
+            text_size: self.size
+            size: self.texture_size
+            halign: 'left'
+            valign: 'middle'
+            on_press: root.on_checkbox_press(nitroshare)
+    TextInput:
+        id: message
+    Button:
+        id: send_text
+        size_hint: 1, None
+        height: default_height
+        text: 'Send TEXT'
+        on_press: root.on_send_text()
+    Button:
+        id: send_files
+        size_hint: 1, None
+        height: default_height
+        text: 'Send Files'
+        on_press: root.on_send_files()
+    Button:
+        size_hint: 1, None
+        height: default_height
+        text: 'Cancel'
+        on_press: root.dismiss()
+<ClientWidget>:
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    size_hint: 1, None
+    height: dp(66)
+    padding: 1
+    texture: None
+    source: None
+    user: ''
+    name: ''
+    message: ''
+    Image:
+        texture: root.texture
+        source: root.source
+        size_hint: None, None
+        size: dp(64), dp(64)
+        pos_hint: {'center_x':.5, 'center_y': .5}
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(5), dp(2)
+        Label:
+            color: 0, 0, 0
+            font_size: label_font_size
+            text: root.user
+            text_size: self.size
+            size: self.texture_size
+            shorten: True
+            halign: 'left'
+            valign: 'middle'
+        Label:
+            color: 0, 0, 0
+            font_size: label_font_size
+            text: root.name
+            text_size: self.size
+            size: self.texture_size
+            shorten: True
+            halign: 'left'
+            valign: 'middle'
+        Label:
+            color: 0, 0, 0
+            font_size: label_font_size
+            text: root.message
+            text_size: self.size
+            size: self.texture_size
+            shorten: True
+            halign: 'left'
+            valign: 'middle'
+        GUIProgressBar:
+            id: progress
+<RootWidget>:
+    canvas.before:
+        Color:
+            rgba: 0.8, 0.8, 0.8, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    orientation: 'vertical'
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint: 1, None
+        height: self.minimum_height
+        padding: dp(5)
+        ClientWidget:
+            id: you
+            user: 'You'
+            name: 'localhost'
+            message: 'ready'
+    ScrollView:
+        do_scroll_x: False
+        do_scroll_y: True
+        BoxLayout:
+            id: scroll_layout
+            orientation: 'vertical'
+            padding: dp(5)
+            spacing: dp(5)
+            size_hint: 1, None
+            height: self.minimum_height
+            ClientWidget:
+                id: ip
+                user: 'IP Connection'
+                name: '@send data'
+                message: 'ready'
+            # BoxLayout:
+    BoxLayout:
+        canvas.before:
+            Color:
+                rgb: 0, 0.5, 0
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        size_hint: 1, None
+        height: dp(60)
+        padding: dp(5)
+        BoxLayout:
+        ImageButton:
+            background_normal: join(app.image_dir, 'OpenFolderIcon.png')
+            background_down: join(app.image_dir, 'OpenFolderIcon.png')
+            id: open_folder
+            on_press: root.open_folder()
+        BoxLayout:
+        ImageButton:
+            background_normal: join(app.image_dir, 'ConfigIcon.png')
+            background_down: join(app.image_dir, 'ConfigIcon.png')
+            id: setting
+            on_press: root.show_config()
+        BoxLayout:
+        ImageButton:
+            background_normal: join(app.image_dir, 'hfs.png')
+            background_down: join(app.image_dir, 'hfs.png')
+            id: hfs
+            on_press: root.show_hfs()
+        BoxLayout:
+<ConfigWidget>:
+    orientation: 'vertical'
+    padding: dp(5)
+    spacing: dp(5)
+    Label:
+        text: 'Saved Folder:'
+        color: 0, 0, 0, 1
+        size_hint: 1, None
+        height: default_height
+        font_size: label_font_size
+        text_size: self.size
+        halign: 'left'
+        valign: 'middle'
+    TextInput:
+        id: target_dir
+        multiline: False
+        size_hint: 1, None
+        height: default_height
+        font_size: label_font_size
+    BoxLayout:
+        size_hint: 1, None
+        height: default_height
+        BoxLayout:
+        Button:
+            text: 'Change Folder'
+            size_hint: None, None
+            size: dp(150), default_height
+            on_press: root.on_change_folder()
+    CheckLabelBox:
+        id: create_node_by_text
+        text: 'Create node by recving TEXT'
+        active: True
+        size_hint: 1, None
+        height: default_height
+    BoxLayout:
+    BoxLayout:
+        size_hint: 1, None
+        height: default_height
+        BoxLayout:
+        Button:
+            text: 'OK'
+            size_hint: None, None
+            size: dp(100), default_height
+            pos_hint: {'center_x':.5, 'center_y': .5}
+            on_release: root.on_ok()
+        Button:
+            text: 'Cancel'
+            size_hint: None, None
+            size: dp(100), default_height
+            pos_hint: {'center_x':.5, 'center_y': .5}
+            on_release: root.on_cancel()
+        BoxLayout:
+<MessageWidget>:
+    orientation: 'vertical'
+    TextInput:
+        id: log
+        font_size: '12sp'
+        do_wrap: False
+        multiline: True
+        readonly: True
+    Button:
+        text: 'OK'
+        size_hint: None, None
+        size: dp(100), default_height
+        pos_hint: {'center_x':.5, 'center_y': .5}
+        on_release: root.on_ok()
+<HFSWidget>:
+    orientation: 'vertical'
+    TextInput:
+        id: log
+        font_size: '12sp'
+        do_wrap: False
+        multiline: True
+        readonly: True
+    Button:
+        text: 'OK'
+        size_hint: None, None
+        size: dp(100), default_height
+        pos_hint: {'center_x':.5, 'center_y': .5}
+        on_release: root.on_ok()

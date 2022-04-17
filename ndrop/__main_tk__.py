@@ -26,6 +26,7 @@ from . import init_config, save_config, gConfig
 from . import hdpitk
 from . import about
 from . import hfs
+from .image import NdropImage
 from .netdrop import NetDropServer, NetDropClient
 from .transport import get_broadcast_address, human_size
 
@@ -141,58 +142,6 @@ class GUINetDropClient(NetDropClient):
     def send_finish(self, err):
         self.parent.result = (None, err)
         super().send_finish(err)
-
-
-IMAGES = {
-    'back': 'BackTile.png',
-    'pc': 'PcLogo.png',
-    'android': 'AndroidLogo.png',
-    'apple': 'AppleLogo.png',
-    'darwin': 'AppleLogo.png',
-    'blackberry': 'BlackberryLogo.png',
-    'ip': 'IpLogo.png',
-    'linux': 'LinuxLogo.png',
-    'smartphone': 'SmartphoneLogo.png',
-    'unknown': 'UnknownLogo.png',
-    'windows': 'WindowsLogo.png',
-    'windowsphone': 'WindowsPhoneLogo.png',
-    'config': 'ConfigIcon.png',
-    'openfolder': 'OpenFolderIcon.png',
-    'hfs': 'hfs.png',
-}
-
-
-class NdropImage():
-    @classmethod
-    def get_os_image(cls, name):
-        image_dir = os.path.join(os.path.dirname(__file__), 'image')
-
-        back_path = os.path.join(image_dir, IMAGES['back'])
-        back_im = Image.open(back_path)
-
-        fore_path = os.path.join(
-            image_dir,
-            IMAGES.get(name.lower()) or IMAGES['unknown']
-        )
-        fore_im = Image.open(fore_path)
-
-        image = Image.new("RGBA", fore_im.size)
-        image.alpha_composite(back_im.resize(fore_im.size))
-        image.alpha_composite(fore_im)
-        return ImageTk.PhotoImage(image)
-
-    @classmethod
-    def get_image(cls, name, background=None):
-        image_dir = os.path.join(os.path.dirname(__file__), 'image')
-
-        fore_path = os.path.join(image_dir, IMAGES[name.lower()])
-        fore_im = Image.open(fore_path)
-
-        background = background or 'white'
-
-        image = Image.new("RGBA", fore_im.size, color=background)
-        image.alpha_composite(fore_im)
-        return ImageTk.PhotoImage(image)
 
 
 class AutoScrollbar(ttk.Scrollbar):
@@ -333,7 +282,7 @@ class Client(ttk.Frame):
         self.virtual_event = '<<client_queue_event>>'
         self.bind(self.virtual_event, self.queue_handler)
 
-        self.image = NdropImage.get_os_image(node['operating_system'])
+        self.image = NdropImage.get_os_tkimage(node['operating_system'])
 
         self.style = ttk.Style()
         self.style.configure('client.TLabel', background='white')
@@ -428,13 +377,13 @@ class Client(ttk.Frame):
                 self.status.set('ready')
                 if self.node['operating_system'] != 'Unknwon':
                     self.node['operating_system'] = 'Unknwon'
-                    self.image = NdropImage.get_os_image(self.node['operating_system'])
+                    self.image = NdropImage.get_os_tkimage(self.node['operating_system'])
                     self.label_image.configure(image=self.image)
             else:
                 self.status.set('%(ip)s - ready' % self.node)
                 if self.node['operating_system'] != 'ip':
                     self.node['operating_system'] = 'ip'
-                    self.image = NdropImage.get_os_image(self.node['operating_system'])
+                    self.image = NdropImage.get_os_tkimage(self.node['operating_system'])
                     self.label_image.configure(image=self.image)
         else:
             self.status.set(f'{self.node["ip"]} - ready')
@@ -900,17 +849,17 @@ class GuiApp(tkdnd.Tk):
         footer = ttk.Frame(self, style='footer.TFrame')
         footer.grid(sticky='ew')
 
-        self.image_openfolder = NdropImage.get_image('openfolder', background='green')
+        self.image_openfolder = NdropImage.get_tkimage('openfolder', background='green')
         label = ttk.Label(footer, image=self.image_openfolder, style='footer.TLabel')
         label.grid(row=0, column=1, padx=10, pady=5)
         label.bind('<Button-1>', self.open_folder)
 
-        self.image_config = NdropImage.get_image('config', background='green')
+        self.image_config = NdropImage.get_tkimage('config', background='green')
         label = ttk.Label(footer, image=self.image_config, style='footer.TLabel')
         label.grid(row=0, column=2, padx=10, pady=5)
         label.bind('<Button-1>', self.show_config)
 
-        self.image_hfs = NdropImage.get_image('hfs', background='green')
+        self.image_hfs = NdropImage.get_tkimage('hfs', background='green')
         label = ttk.Label(footer, image=self.image_hfs, style='footer.TLabel')
         label.grid(row=0, column=3, padx=10, pady=5)
         label.bind('<Button-1>', self.show_hfs)

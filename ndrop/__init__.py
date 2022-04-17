@@ -39,7 +39,7 @@ create_node_by_text = True
             f.write(cfg_text)
 
     config = ConfigParser()
-    config.read(cfg_path)
+    config.read(cfg_path, encoding='utf-8')
     for section in config.sections():
         setattr(gConfig, section, {})
         for k, v in config.items(section):
