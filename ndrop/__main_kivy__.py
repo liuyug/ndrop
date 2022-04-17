@@ -79,11 +79,11 @@ class GUINetDropServer(NetDropServer):
         super().__init__(*args)
 
     def init_widget(self, *args):
-        pb = self.parent.ids.progress
+        pb = self.parent.root.ids.you.progress
         pb.max = self.max_value
 
     def init_bar(self, max_value):
-        pb = self.parent.ids.progress
+        pb = self.parent.root.ids.you.progress
         self.max_value = max_value
         Clock.schedule_once(self.init_widget)
         return pb
@@ -659,7 +659,7 @@ class GuiApp(App):
         cert = None
         key = None
 
-        self.server = GUINetDropServer(self.root.ids.you, listen, mode, (cert, key))
+        self.server = GUINetDropServer(self, listen, mode, (cert, key))
         self.server.saved_to(gConfig.app['target_dir'])
         threading.Thread(
             name='Ndrop server',
