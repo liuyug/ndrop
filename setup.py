@@ -41,6 +41,7 @@ setup(
         ],
         'gui_scripts': [
             '%stk = ndrop.__main_tk__:run' % about.name,
+            '%skivy = ndrop.__main_kivy__:run' % about.name,
         ],
     },
     install_requires=requirements,

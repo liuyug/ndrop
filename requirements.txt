@@ -2,3 +2,4 @@ tqdm
 ifaddr
 pillow
 appdirs
+kivy
