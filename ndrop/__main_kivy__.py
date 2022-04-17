@@ -659,7 +659,7 @@ class GuiApp(App):
         cert = None
         key = None
 
-        self.server = GUINetDropServer(self, listen, mode, (cert, key))
+        self.server = GUINetDropServer(self.root.ids.you, listen, mode, (cert, key))
         self.server.saved_to(gConfig.app['target_dir'])
         threading.Thread(
             name='Ndrop server',
