@@ -225,14 +225,12 @@ class SendWidget(BoxLayout):
 class ClientWidget(ButtonBehavior, BoxLayout):
     agent = None
     progress = None
-    node = None
+    node = ObjectProperty(None)
     image_name = StringProperty()
 
     def __init__(self, node=None, **kwargs):
         super(ClientWidget, self).__init__(**kwargs)
         self.node = node
-        if self.node:
-            self.update_node(self.node)
 
     def __repr__(self):
         if self.node:
@@ -244,8 +242,8 @@ class ClientWidget(ButtonBehavior, BoxLayout):
         bio = NdropImage.get_os_pngio(name)
         self.texture = CoreImage(bio, ext='png').texture
 
-    def update_node(self, node):
-        self.node = node
+    def on_node(self, instance, node):
+        # self.node = node
         if node['mode'] == '?':
             self.user = node['user']
         else:
@@ -307,8 +305,8 @@ class RootWidget(BoxLayout):
     def init_widget(self, *args):
         self.messagebox = MessageWidget()
         app = App.get_running_app()
-        self.ids.you.update_node(app.host_node)
-        self.ids.ip.update_node(app.ip_node)
+        self.ids.you.node = app.host_node
+        self.ids.ip.node = app.ip_node
 
     def on_drop_file(self, widget, text, x, y, *args):
         # 当拖拽多个文件，会产生多个事件，每个事件一个文件
@@ -600,7 +598,6 @@ class GuiApp(App):
         default_font = Config.get('kivy', 'default_font')
         Logger.info(f'FONT: {default_font}')
 
-        Window.size = (320, 360)
         self.title = '%s v%s' % (about.name.capitalize(), about.version)
         self.icon = os.path.join(self.image_dir, 'ndrop.png')
         self.load_kv(os.path.join(kv_dir, '__main_kivy__.kv'))
