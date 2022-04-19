@@ -677,7 +677,6 @@ def run():
     handler.setFormatter(logging.Formatter(fmt=FORMAT))
     app_logger.addHandler(handler)
 
-    Window.size = (320, 360)
     app = GuiApp()
     app.run()
 
