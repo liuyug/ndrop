@@ -37,7 +37,7 @@ from kivy.graphics import Color, Rectangle
 from kivy.core.image import Image as CoreImage
 from kivy.graphics.texture import Texture
 from kivy.properties import StringProperty, ObjectProperty
-
+from kivy.utils import platform as kivy_platform
 
 logger = logging.getLogger(__name__)
 
@@ -666,8 +666,9 @@ class GuiApp(App):
 
 
 def run():
-    print(about.banner)
+    Logger.info(f'Banner: {about.banner}')
     init_config()
+    Logger.info(f'Config file: {gConfig.__cfg_path}')
     app_logger = logging.getLogger(__name__.rpartition('.')[0])
     app_logger.setLevel(logging.INFO)
 
@@ -676,6 +677,7 @@ def run():
     handler.setFormatter(logging.Formatter(fmt=FORMAT))
     app_logger.addHandler(handler)
 
+    Window.size = (320, 360)
     app = GuiApp()
     app.run()
 

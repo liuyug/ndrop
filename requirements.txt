@@ -1,5 +1,5 @@
 tqdm
 ifaddr
 pillow
-appdirs
 kivy
+platformdirs

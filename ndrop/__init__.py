@@ -1,7 +1,7 @@
 import os
 from configparser import ConfigParser
 
-import appdirs
+from platformdirs import PlatformDirs
 
 
 def singleton(cls):
@@ -20,12 +20,14 @@ class gConfig():
 
 
 def init_config(cfg_path=None):
+    dirs = PlatformDirs('ndrop', '')
     cfg_path = cfg_path or os.path.join(
-        appdirs.user_config_dir('ndrop', ''),
+        dirs.user_config_dir,
         'ndrop.ini',
     )
+    gConfig.__cfg_path = cfg_path
     if not os.path.exists(cfg_path):
-        target_dir = os.path.join(os.path.expanduser('~'), 'Desktop')
+        target_dir = dirs.user_documents_dir
         cfg_text = f"""[app]
 target_dir = {target_dir}
 enable_hdpi = False
@@ -49,8 +51,9 @@ create_node_by_text = True
 
 
 def save_config(cfg_path=None):
+    dirs = PlatformDirs('ndrop', '')
     cfg_path = cfg_path or os.path.join(
-        appdirs.user_config_dir('ndrop', ''),
+        dirs.user_config_dir,
         'ndrop.ini',
     )
     config = ConfigParser()

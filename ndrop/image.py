@@ -2,7 +2,7 @@
 import os.path
 from io import BytesIO
 
-from PIL import Image, ImageTk
+from PIL import Image
 
 
 IMAGES = {
@@ -45,6 +45,7 @@ class NdropImage():
 
     @classmethod
     def get_os_tkimage(cls, name):
+        from PIL import ImageTk
         return ImageTk.PhotoImage(cls.get_os_image(name))
 
     @classmethod
@@ -70,6 +71,7 @@ class NdropImage():
 
     @classmethod
     def get_tkimage(cls, name, background=None):
+        from PIL import ImageTk
         return ImageTk.PhotoImage(cls.get_image(name, background=background))
 
     @classmethod
