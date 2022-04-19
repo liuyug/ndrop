@@ -147,6 +147,7 @@
     Image:
         texture: root.texture
         source: root.source
+        allow_stretch: True
         size_hint: None, None
         size: dp(64), dp(64)
         pos_hint: {'center_x':.5, 'center_y': .5}
@@ -228,17 +229,12 @@
         padding: dp(5)
         BoxLayout:
         Button:
-            canvas.before:
-                Color:
-                    rgb: 0, 0.5, 0
-                Rectangle:
-                    pos: self.pos
-                    size: self.size
             size_hint: None, None
             size: dp(40), dp(40)
             pos_hint: {'center_x':.5, 'center_y': .5}
             # background_normal: join(app.image_dir, 'OpenFolderIcon.png')
             # background_down: join(app.image_dir, 'OpenFolderIcon.png')
+            background_color: 0, 0.5, 0
             background_down: ''
             background_normal: ''
             id: open_folder

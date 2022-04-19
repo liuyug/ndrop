@@ -272,11 +272,10 @@ class ClientWidget(ButtonBehavior, BoxLayout):
         self.message = '%s - %s' % (self.node['ip'], err)
 
     def recv_finish(self, from_addr, err):
+        self.agent = None
         Clock.schedule_once(partial(self.update_message, err=err))
 
     def do_send_text(self, text, ip=None, mode=None):
-        if self.agent:
-            return
         ip = ip or self.node['ip']
         mode = mode or self.node['mode']
         agent = GUINetDropClient(self, ip, mode)
@@ -287,6 +286,10 @@ class ClientWidget(ButtonBehavior, BoxLayout):
         ).start()
 
     def on_press(self):
+        if self.agent:
+            return
+        if self.node['type'] == 'host':
+            return
         content = SendWidget(ip=self.node['ip'], mode=self.node['mode'])
         self._popup = Popup(
             title="Send",
