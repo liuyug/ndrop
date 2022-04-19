@@ -21,10 +21,8 @@ class gConfig():
 
 def init_config(cfg_path=None):
     dirs = PlatformDirs('ndrop', '')
-    cfg_path = cfg_path or os.path.join(
-        dirs.user_config_dir,
-        'ndrop.ini',
-    )
+    if not cfg_path:
+        cfg_path = os.path.join(dirs.user_config_dir, 'ndrop.ini')
     gConfig.__cfg_path = cfg_path
     if not os.path.exists(cfg_path):
         target_dir = dirs.user_documents_dir
@@ -51,11 +49,8 @@ create_node_by_text = True
 
 
 def save_config(cfg_path=None):
-    dirs = PlatformDirs('ndrop', '')
-    cfg_path = cfg_path or os.path.join(
-        dirs.user_config_dir,
-        'ndrop.ini',
-    )
+    if not cfg_path:
+        cfg_path = gConfig.__cfg_path
     config = ConfigParser()
     for item in dir(gConfig):
         if item.startswith('__'):
@@ -63,5 +58,8 @@ def save_config(cfg_path=None):
         value = getattr(gConfig, item)
         config[item] = value
 
+    dir_name = os.path.dirname(cfg_path)
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
     with open(cfg_path, 'wt', encoding='utf-8') as configfile:
         config.write(configfile)

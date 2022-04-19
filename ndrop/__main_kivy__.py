@@ -70,7 +70,7 @@ class GUIProgressBar(ProgressBar):
             self.count[self.time_index] = self.step_count
             speed = sum(self.count) / (len([x for x in self.count if x != 0]) * self.interval / 1000)
             self.speed = f'{human_size(speed):>9}/s'
-        self.step_count = -1
+        self.step_count = 0
 
 
 class GUINetDropServer(NetDropServer):
@@ -102,11 +102,11 @@ class GUINetDropServer(NetDropServer):
     def recv_finish_text(self, from_addr):
         text = super().recv_finish_text(from_addr)
         self.parent.on_recv_text(text, from_addr)
-        return text
 
     def recv_finish(self, from_addr, err):
         if err != 'done':
             Logger.warn(f'ndrop TEXT: {from_addr} {err}')
+        self.parent.root.ids.you.recv_finish(from_addr, err)
         super().recv_finish(from_addr, err)
 
 
@@ -254,6 +254,7 @@ class ClientWidget(ButtonBehavior, BoxLayout):
         else:
             self.message = '%(ip)s - ready' % node
         self.image_name = node['operating_system']
+        self.progress = self.ids.progress
 
     def do_send_files(self, files, ip=None, mode=None):
         if self.agent:
@@ -266,6 +267,12 @@ class ClientWidget(ButtonBehavior, BoxLayout):
             target=agent.send_files,
             args=(files, ),
         ).start()
+
+    def update_message(self, dt, err):
+        self.message = '%s - %s' % (self.node['ip'], err)
+
+    def recv_finish(self, from_addr, err):
+        Clock.schedule_once(partial(self.update_message, err=err))
 
     def do_send_text(self, text, ip=None, mode=None):
         if self.agent:
@@ -595,9 +602,6 @@ class GuiApp(App):
         kv_dir = os.path.dirname(__file__)
         self.image_dir = os.path.join(kv_dir, 'image')
 
-        default_font = Config.get('kivy', 'default_font')
-        Logger.info(f'FONT: {default_font}')
-
         self.title = '%s v%s' % (about.name.capitalize(), about.version)
         self.icon = os.path.join(self.image_dir, 'ndrop.png')
         self.load_kv(os.path.join(kv_dir, '__main_kivy__.kv'))
@@ -630,6 +634,9 @@ class GuiApp(App):
         Window.bind(on_drop_file=self.root.on_drop_file)
         Window.bind(on_drop_text=self.root.on_drop_text)
         return self.root
+
+    def on_pause(self):
+        return True
 
     def on_add_node(self, node):
         self.root.dispatch('on_ndrop_event', {
@@ -667,8 +674,48 @@ class GuiApp(App):
 
 def run():
     Logger.info(f'Banner: {about.banner}')
-    init_config()
+    if kivy_platform == 'android':
+        from android import loadingscreen
+        loadingscreen.hide_loading_screen()
+        from android.permissions import check_permission, request_permissions, Permission
+        # request permission at packing
+        #     WRITE_EXTERNAL_STORAGE
+        #     READ_EXTERNAL_STORAGE,
+        #     Permission.INTERNET,
+        #     Permission.ACCESS_NETWORK_STATE,
+        #     Permission.ACCESS_WIFI_STATE,
+        runtime_permissions = [
+            Permission.WRITE_EXTERNAL_STORAGE,
+            Permission.READ_EXTERNAL_STORAGE,
+        ]
+        request_permissions(runtime_permissions)
+        for permission in runtime_permissions:
+            if not check_permission(permission):
+                request_permissions([permission])
+                if not check_permission(permission):
+                    Logger.warn(f'Permission: Failed to request {permission}')
+        from android.storage import app_storage_path, primary_external_storage_path
+        cfg_path = app_storage_path()
+        cfg_file = os.path.join(cfg_path, 'ndrop.ini')
+        cfg_file = None
+        init_config(cfg_file)
+        gConfig.app['target_dir'] = os.path.join(primary_external_storage_path(), 'Download')
+    else:
+        init_config()
+        Window.size = (320, 360)
     Logger.info(f'Config file: {gConfig.__cfg_path}')
+    Logger.info(f'Target dir: {gConfig.app["target_dir"]}')
+
+    # Android fonts: /system/fonts
+    # Kivy font: ['Roboto', 'data/fonts/Roboto-Regular.ttf', 'data/fonts/Roboto-Italic.ttf', 'data/fonts/Roboto-Bold.ttf', 'data/fonts/Roboto-BoldItalic.ttf']
+    default_font = Config.get('kivy', 'default_font')
+    cjk_font = '/system/fonts/NotoSansCJK-Regular.ttc'
+    if cjk_font not in default_font:
+        default_font = default_font.replace('data/fonts/Roboto-BoldItalic.ttf', cjk_font)
+        Config.set('kivy', 'default_font', default_font)
+        Config.write()
+    Logger.info(f'FONT: {default_font}')
+
     app_logger = logging.getLogger(__name__.rpartition('.')[0])
     app_logger.setLevel(logging.INFO)
 

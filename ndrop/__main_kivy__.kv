@@ -28,10 +28,6 @@
         halign: 'left'
         valign: 'middle'
         on_press: root.on_label_click(cb)
-<ImageButton@Button>:
-    size_hint: None, None
-    size: dp(40), dp(40)
-    pos_hint: {'center_x':.5, 'center_y': .5}
 <FileChooserWidget>:
     path: ''
     BoxLayout:
@@ -231,19 +227,40 @@
         height: dp(60)
         padding: dp(5)
         BoxLayout:
-        ImageButton:
-            background_normal: join(app.image_dir, 'OpenFolderIcon.png')
-            background_down: join(app.image_dir, 'OpenFolderIcon.png')
+        Button:
+            canvas.before:
+                Color:
+                    rgb: 0, 0.5, 0
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            size_hint: None, None
+            size: dp(40), dp(40)
+            pos_hint: {'center_x':.5, 'center_y': .5}
+            # background_normal: join(app.image_dir, 'OpenFolderIcon.png')
+            # background_down: join(app.image_dir, 'OpenFolderIcon.png')
+            background_down: ''
+            background_normal: ''
             id: open_folder
             on_press: root.open_folder()
+            Image:
+                source: join(app.image_dir, 'OpenFolderIcon.png')
+                size: open_folder.size
+                pos: open_folder.pos
         BoxLayout:
-        ImageButton:
+        Button:
+            size_hint: None, None
+            size: dp(40), dp(40)
+            pos_hint: {'center_x':.5, 'center_y': .5}
             background_normal: join(app.image_dir, 'ConfigIcon.png')
             background_down: join(app.image_dir, 'ConfigIcon.png')
             id: setting
             on_press: root.show_config()
         BoxLayout:
-        ImageButton:
+        Button:
+            size_hint: None, None
+            size: dp(40), dp(40)
+            pos_hint: {'center_x':.5, 'center_y': .5}
             background_normal: join(app.image_dir, 'hfs.png')
             background_down: join(app.image_dir, 'hfs.png')
             id: hfs
