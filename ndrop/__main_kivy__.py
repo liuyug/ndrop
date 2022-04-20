@@ -739,11 +739,9 @@ def run():
     if kivy_platform == 'android':
         try:
             from android.storage import app_storage_path, primary_external_storage_path
-            cfg_path = app_storage_path()
-            cfg_file = os.path.join(cfg_path, 'ndrop.ini')
-            cfg_file = None
-            init_config(cfg_file)
-            gConfig.app['target_dir'] = os.path.join(primary_external_storage_path(), 'Download')
+            Logger.info(f'Ndrop: app_storage_path: {app_storage_path()}')
+            Logger.info(f'Ndrop: primary_external_storage_path: {primary_external_storage_path()}')
+            init_config()
             gConfig.app['android_rootpath'] = primary_external_storage_path()
             Window.minimum_width, Window.minimum_height = 320, 360
             Window.fullscreen = True
@@ -756,11 +754,11 @@ def run():
         Window.minimum_width, Window.minimum_height = 320, 360
         Window.size = (320, 360)
     Logger.info(f'Kivy: Platform: {kivy_platform}')
-    Logger.info(f'Config file: {gConfig.config_path}')
-    Logger.info(f'Target dir: {gConfig.app["target_dir"]}')
+    Logger.info(f'Ndrop: Config file: {gConfig.config_path}')
+    Logger.info(f'Ndrop: Target dir: {gConfig.app["target_dir"]}')
 
     default_font = Config.get('kivy', 'default_font').strip()
-    Logger.info(f'Font: {default_font}')
+    Logger.info(f'Ndrop: Font: {default_font}')
     if Config.has_option('kivy', 'default_font_orig'):
         default_font_orig = Config.get('kivy', 'default_font_orig').strip()
     else:
@@ -787,7 +785,7 @@ def run():
             fonts[1] = cjk_font_path
             Config.set('kivy', 'default_font', str(fonts))
             Config.write()
-            Logger.info(f'Fix Font: {fonts}')
+            Logger.info(f'Ndrop: Fix Font: {fonts}')
 
     app_logger = logging.getLogger(__name__.rpartition('.')[0])
     app_logger.setLevel(logging.INFO)
