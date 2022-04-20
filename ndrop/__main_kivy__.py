@@ -627,7 +627,6 @@ class GuiApp(App):
 
     def build(self):
         self.title = 'NDrop'
-        self.init_config()
 
         kv_dir = os.path.dirname(__file__)
         self.image_dir = os.path.join(kv_dir, 'image')
@@ -680,7 +679,9 @@ class GuiApp(App):
                 Window.fullscreen = 'auto'
             except ImportError:
                 Logger.warn('Kivy: not found "android" packge')
-                return
+
+            Config.set('graphics', 'fullscreen', 'auto')
+            Config.set('graphics', 'window_state', 'maximized')
         else:
             init_config()
             Window.fullscreen = False
@@ -724,6 +725,7 @@ class GuiApp(App):
                 fonts[1] = cjk_font_path
                 Config.set('kivy', 'default_font', str(fonts))
                 Logger.info(f'Ndrop: Fix Font: {fonts}')
+
         Config.write()
 
     def on_stop(self):
@@ -811,6 +813,7 @@ def run():
     app_logger.addHandler(handler)
 
     app = GuiApp()
+    app.init_config()
     app.run()
 
 
