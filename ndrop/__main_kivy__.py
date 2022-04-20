@@ -341,7 +341,7 @@ class RootWidget(BoxLayout):
         app = App.get_running_app()
         self.ids.you.node = app.host_node
         self.ids.ip.node = app.ip_node
-        Clock.schedule_once(app.remove_android_splash)
+        Clock.schedule_once(app.fix_android_splash)
 
     def on_drop_file(self, widget, text, x, y, *args):
         # 当拖拽多个文件，会产生多个事件，每个事件一个文件
@@ -704,6 +704,17 @@ class GuiApp(App):
             daemon=True,
         ).start()
 
+    def fix_android_splash(self, *args):
+        if kivy_platform != 'android':
+            return
+        try:
+            from android import remove_presplash
+            remove_presplash()
+        except ImportError:
+            Logger.warning(
+                'Base: Failed to import "android" module. '
+                'Could not remove android presplash.')
+
     def ask_runtime_permission(self, permission):
         """
         WRITE_EXTERNAL_STORAGE
@@ -713,27 +724,33 @@ class GuiApp(App):
         ACCESS_NETWORK_STATE,
         ACCESS_WIFI_STATE,
         """
-        if not kivy_platform == 'android':
+        if kivy_platform != 'android':
             return
-        from android.permissions import check_permission, request_permissions, Permission
-        android_permission = getattr(Permission, permission)
-        if not check_permission(android_permission):
-            request_permissions([android_permission])
+        try:
+            from android.permissions import check_permission, request_permissions, Permission
+            android_permission = getattr(Permission, permission)
             if not check_permission(android_permission):
-                Logger.warn(f'Permission: Failed to request {permission}')
+                request_permissions([android_permission])
+                if not check_permission(android_permission):
+                    Logger.warn(f'Permission: Failed to request {permission}')
+        except ImportError:
+            pass
 
 
 def run():
     Logger.info(f'Ndrop: {about.banner}')
     if kivy_platform == 'android':
-        from android.storage import app_storage_path, primary_external_storage_path
-        cfg_path = app_storage_path()
-        cfg_file = os.path.join(cfg_path, 'ndrop.ini')
-        cfg_file = None
-        init_config(cfg_file)
-        gConfig.app['target_dir'] = os.path.join(primary_external_storage_path(), 'Download')
-        Window.minimum_width, Window.minimum_height = 320, 360
-        Window.fullscreen = True
+        try:
+            from android.storage import app_storage_path, primary_external_storage_path
+            cfg_path = app_storage_path()
+            cfg_file = os.path.join(cfg_path, 'ndrop.ini')
+            cfg_file = None
+            init_config(cfg_file)
+            gConfig.app['target_dir'] = os.path.join(primary_external_storage_path(), 'Download')
+            Window.minimum_width, Window.minimum_height = 320, 360
+            Window.fullscreen = True
+        except ImportError:
+            Logger.warn('Kivy: not found "android" packge')
     else:
         init_config()
         Window.fullscreen = False
