@@ -66,7 +66,6 @@ class NetDropServer(NetDrop):
     def quit(self):
         for transport in self._transport:
             logger.info('Quit: %s' % transport)
-            transport.recv_finish(transport._ip_addrs[0], 'quit')
             transport.quit_request()
 
     def saved_to(self, path):

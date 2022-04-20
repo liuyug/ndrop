@@ -433,6 +433,8 @@ class RootWidget(BoxLayout):
             return True
 
     def open_folder(self):
+        App.get_running_app().open_settings()
+        return
         App.get_running_app().ask_runtime_permission('READ_EXTERNAL_STORAGE')
         file_url = 'file://%s' % gConfig.app['target_dir']
         webbrowser.open(file_url)
@@ -661,7 +663,7 @@ class GuiApp(App):
         self.start_ndrop_server()
         Window.bind(on_drop_file=self.root.on_drop_file)
         Window.bind(on_drop_text=self.root.on_drop_text)
-            Clock.schedule_once(self.fix_android_splash)
+        Clock.schedule_once(self.fix_android_splash)
         return self.root
 
     def init_config(self):
@@ -725,8 +727,8 @@ class GuiApp(App):
         Config.write()
 
     def on_stop(self):
+        Logger.info('Ndrop: request to quit.')
         self.server.quit()
-        Logger.info('ndrop: quit')
 
     def on_pause(self):
         return True
