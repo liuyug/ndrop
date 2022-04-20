@@ -25,6 +25,7 @@ from kivy.config import Config
 from kivy.logger import Logger
 from kivy.clock import Clock
 from kivy.core.window import Window
+from kivy.resources import resource_add_path, resource_find
 from kivy.uix.behaviors.button import ButtonBehavior
 from kivy.uix.popup import Popup
 from kivy.uix.progressbar import ProgressBar
@@ -736,22 +737,46 @@ def run():
         cfg_file = None
         init_config(cfg_file)
         gConfig.app['target_dir'] = os.path.join(primary_external_storage_path(), 'Download')
+        Window.minimum_width, Window.minimum_height = 320, 360
+        Window.fullscreen = True
     else:
         init_config()
+        Window.fullscreen = False
+        Window.minimum_width, Window.minimum_height = 320, 360
         Window.size = (320, 360)
     Logger.info(f'Kivy: Platform: {kivy_platform}')
     Logger.info(f'Config file: {gConfig.__cfg_path}')
     Logger.info(f'Target dir: {gConfig.app["target_dir"]}')
 
-    # Android fonts: /system/fonts
-    # Kivy font: ['Roboto', 'data/fonts/Roboto-Regular.ttf', 'data/fonts/Roboto-Italic.ttf', 'data/fonts/Roboto-Bold.ttf', 'data/fonts/Roboto-BoldItalic.ttf']
-    default_font = Config.get('kivy', 'default_font')
-    cjk_font = '/system/fonts/NotoSansCJK-Regular.ttc'
-    if cjk_font not in default_font:
-        default_font = default_font.replace('data/fonts/Roboto-BoldItalic.ttf', cjk_font)
-        Config.set('kivy', 'default_font', default_font)
+    default_font = Config.get('kivy', 'default_font').strip()
+    Logger.info(f'Font: {default_font}')
+    if Config.has_option('kivy', 'default_font_orig'):
+        default_font_orig = Config.get('kivy', 'default_font_orig').strip()
+    else:
+        default_font_orig = default_font
+        Config.set('kivy', 'default_font_orig', default_font_orig)
         Config.write()
-    Logger.info(f'FONT: {default_font}')
+    if kivy_platform == 'android':
+        cjk_font = 'NotoSansCJK-Regular.ttc'
+        resource_add_path(r'/system/fonts')
+    elif kivy_platform == 'win':
+        cjk_font = 'msyh.ttc'
+        resource_add_path(r'C:\Windows\Fonts')
+    elif kivy_platform == 'linux':
+        resource_add_path(r'/usr/share/fonts/truetype/droid')
+        cjk_font = 'DroidSansFallbackFull.ttf'
+    else:
+        cjk_font = None
+    if cjk_font and cjk_font not in default_font:
+        cjk_font_path = resource_find(cjk_font)
+        # Kivy font: ['Roboto', 'data/fonts/Roboto-Regular.ttf', 'data/fonts/Roboto-Italic.ttf', 'data/fonts/Roboto-Bold.ttf', 'data/fonts/Roboto-BoldItalic.ttf']
+        # kivy/core/text/__init__.py register(name, fn_regular, fn_italic=None, fn_bold=None, fn_bolditalic=None):
+        if cjk_font_path:
+            fonts = [f.strip("' ") for f in default_font_orig.strip('[]').split(',')]
+            fonts[1] = cjk_font_path
+            Config.set('kivy', 'default_font', str(fonts))
+            Config.write()
+            Logger.info(f'Fix Font: {fonts}')
 
     app_logger = logging.getLogger(__name__.rpartition('.')[0])
     app_logger.setLevel(logging.INFO)
