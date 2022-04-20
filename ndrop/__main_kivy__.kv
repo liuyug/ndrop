@@ -51,17 +51,17 @@
             BoxLayout:
 <SendWidget>:
     orientation: "vertical"
-    padding: dp(5)
-    spacing: dp(5)
+    padding: sp(5)
+    spacing: sp(5)
     BoxLayout:
         size_hint: 1, None
         height: default_height
-        spacing: dp(5)
+        spacing: sp(5)
         Label:
             text: 'IP:'
             color: 0, 0, 0, 1
             size_hint: None, None
-            size: dp(20), default_height
+            size: sp(20), default_height
             halign: 'left'
             valign: 'middle'
         TextInput:
@@ -71,12 +71,12 @@
     BoxLayout:
         size_hint: 1, None
         height: default_height
-        spacing: dp(5)
+        spacing: sp(5)
         Label:
             text: 'Mode:'
             color: 0, 0, 0, 1
             size_hint: None, None
-            size: dp(50), default_height
+            size: sp(50), default_height
             halign: 'left'
             valign: 'middle'
         CheckBox:
@@ -85,7 +85,7 @@
             active: True
             group: 'mode'
             size_hint: None, None
-            size: dp(20), default_height
+            size: sp(20), default_height
             on_active: root.on_checkbox_active(self)
         ButtonLabel:
             text: 'Dukto'
@@ -100,7 +100,7 @@
             text: 'nitroshare'
             group: 'mode'
             size_hint: None, None
-            size: dp(20), default_height
+            size: sp(20), default_height
             on_active: root.on_checkbox_active(self)
         ButtonLabel:
             text: 'NitroShare'
@@ -137,7 +137,7 @@
             pos: self.pos
             size: self.size
     size_hint: 1, None
-    height: dp(66)
+    height: sp(66)
     padding: 1
     texture: None
     source: None
@@ -149,11 +149,11 @@
         source: root.source
         allow_stretch: True
         size_hint: None, None
-        size: dp(64), dp(64)
+        size: sp(64), sp(64)
         pos_hint: {'center_x':.5, 'center_y': .5}
     BoxLayout:
         orientation: 'vertical'
-        padding: dp(5), dp(2)
+        padding: sp(5), sp(2)
         Label:
             color: 0, 0, 0
             font_size: label_font_size
@@ -195,7 +195,7 @@
         orientation: 'vertical'
         size_hint: 1, None
         height: self.minimum_height
-        padding: dp(5)
+        padding: sp(5)
         ClientWidget:
             id: you
             user: 'You'
@@ -207,8 +207,8 @@
         BoxLayout:
             id: scroll_layout
             orientation: 'vertical'
-            padding: dp(5)
-            spacing: dp(5)
+            padding: sp(5)
+            spacing: sp(5)
             size_hint: 1, None
             height: self.minimum_height
             ClientWidget:
@@ -225,47 +225,58 @@
                 pos: self.pos
                 size: self.size
         size_hint: 1, None
-        height: dp(60)
-        padding: dp(5)
+        height: sp(60)
+        padding: sp(5)
         BoxLayout:
         Button:
             size_hint: None, None
-            size: dp(40), dp(40)
+            size: sp(40), sp(40)
             pos_hint: {'center_x':.5, 'center_y': .5}
-            # background_normal: join(app.image_dir, 'OpenFolderIcon.png')
-            # background_down: join(app.image_dir, 'OpenFolderIcon.png')
             background_color: 0, 0.5, 0
             background_down: ''
             background_normal: ''
             id: open_folder
             on_press: root.open_folder()
             Image:
+                allow_stretch: True
                 source: join(app.image_dir, 'OpenFolderIcon.png')
                 size: open_folder.size
                 pos: open_folder.pos
         BoxLayout:
         Button:
             size_hint: None, None
-            size: dp(40), dp(40)
+            size: sp(40), sp(40)
             pos_hint: {'center_x':.5, 'center_y': .5}
-            background_normal: join(app.image_dir, 'ConfigIcon.png')
-            background_down: join(app.image_dir, 'ConfigIcon.png')
-            id: setting
+            background_color: 0, 0.5, 0
+            background_normal: ''
+            background_down: ''
+            id: config
             on_press: root.show_config()
+            Image:
+                allow_stretch: True
+                source: join(app.image_dir, 'ConfigIcon.png')
+                size: config.size
+                pos: config.pos
         BoxLayout:
         Button:
             size_hint: None, None
-            size: dp(40), dp(40)
+            size: sp(40), sp(40)
             pos_hint: {'center_x':.5, 'center_y': .5}
-            background_normal: join(app.image_dir, 'hfs.png')
-            background_down: join(app.image_dir, 'hfs.png')
+            background_color: 0, 0.5, 0
+            background_normal: ''
+            background_down: ''
             id: hfs
             on_press: root.show_hfs()
+            Image:
+                allow_stretch: True
+                source: join(app.image_dir, 'hfs.png')
+                size: hfs.size
+                pos: hfs.pos
         BoxLayout:
 <ConfigWidget>:
     orientation: 'vertical'
-    padding: dp(5)
-    spacing: dp(5)
+    padding: sp(5)
+    spacing: sp(5)
     Label:
         text: 'Saved Folder:'
         color: 0, 0, 0, 1
@@ -288,7 +299,7 @@
         Button:
             text: 'Change Folder'
             size_hint: None, None
-            size: dp(150), default_height
+            size: sp(150), default_height
             on_press: root.on_change_folder()
     CheckLabelBox:
         id: create_node_by_text
@@ -304,13 +315,13 @@
         Button:
             text: 'OK'
             size_hint: None, None
-            size: dp(100), default_height
+            size: sp(100), default_height
             pos_hint: {'center_x':.5, 'center_y': .5}
             on_release: root.on_ok()
         Button:
             text: 'Cancel'
             size_hint: None, None
-            size: dp(100), default_height
+            size: sp(100), default_height
             pos_hint: {'center_x':.5, 'center_y': .5}
             on_release: root.on_cancel()
         BoxLayout:
@@ -325,11 +336,13 @@
     Button:
         text: 'OK'
         size_hint: None, None
-        size: dp(100), default_height
+        size: sp(100), default_height
         pos_hint: {'center_x':.5, 'center_y': .5}
         on_release: root.on_ok()
 <HFSWidget>:
     orientation: 'vertical'
+    padding: sp(5)
+    spacing: sp(5)
     TextInput:
         id: log
         font_size: '12sp'
@@ -339,6 +352,6 @@
     Button:
         text: 'OK'
         size_hint: None, None
-        size: dp(100), default_height
+        size: sp(100), default_height
         pos_hint: {'center_x':.5, 'center_y': .5}
         on_release: root.on_ok()

@@ -39,6 +39,9 @@ from kivy.graphics.texture import Texture
 from kivy.properties import StringProperty, ObjectProperty
 from kivy.utils import platform as kivy_platform
 
+from kivy_garden.filebrowser import FileBrowser
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -83,6 +86,7 @@ class GUINetDropServer(NetDropServer):
         pb.max = self.max_value
 
     def init_bar(self, max_value):
+        App.get_running_app().ask_runtime_permission('WRITE_EXTERNAL_STORAGE')
         pb = self.parent.root.ids.you.progress
         self.max_value = max_value
         Clock.schedule_once(self.init_widget)
@@ -384,8 +388,7 @@ class RootWidget(BoxLayout):
         elif args['action'] == 'remove_node':
             node = args['node']
             for client in layout.children:
-                if not client.progress and \
-                        client.node['type'] == 'guest' and \
+                if client.node['type'] == 'guest' and \
                         client.node['ip'] == node['ip'] and \
                         client.node['mode'] == node['mode']:
                     Clock.schedule_once(partial(self.remove_client, client=client))
@@ -412,7 +415,9 @@ class RootWidget(BoxLayout):
             return True
 
     def open_folder(self):
-        webbrowser.open(gConfig.app['target_dir'])
+        App.get_running_app().ask_runtime_permission('READ_EXTERNAL_STORAGE')
+        file_url = 'file://%s' % gConfig.app['target_dir']
+        webbrowser.open(file_url)
 
     def show_config(self):
         content = ConfigWidget()
@@ -475,6 +480,7 @@ class FileChooserWidget(FloatLayout):
 
     @staticmethod
     def ask_files(path=None, callback=None):
+        App.get_running_app().ask_runtime_permission('READ_EXTERNAL_STORAGE')
         # 当选择多个文件时，List视图不能显示选中的文件
         content = FileChooserWidget(path=path)
         popup = Popup(
@@ -488,6 +494,25 @@ class FileChooserWidget(FloatLayout):
         content.callback = callback
         content.cancel = popup.dismiss
         popup.open()
+
+    def ask_files2(path=None, *args, **kwargs):
+        browser = FileBrowser(
+            select_string='Select',
+            favorites=[(path, 'Documents')]
+        )
+        browser.bind(on_success=self._fbrowser_success,
+                     on_canceled=self._fbrowser_canceled,
+                     on_submit=self._fbrowser_submit)
+        return browser
+
+    def _fbrowser_canceled(self, instance):
+        print('cancelled, Close self.')
+
+    def _fbrowser_success(self, instance):
+        print(instance.selection)
+
+    def _fbrowser_submit(self, instance):
+        print(instance.selection)
 
 
 class ConfigWidget(BoxLayout):
@@ -505,10 +530,11 @@ class ConfigWidget(BoxLayout):
         self.ids.target_dir.text = path
 
     def on_change_folder(self):
-        FileChooserWidget.ask_files(
+        fbrower = FileChooserWidget.ask_files2(
             path=gConfig.app['target_dir'],
             callback=self.on_get_folder,
         )
+        self.ids.target_dir.text = fbrower.path
 
     def on_ok(self):
         gConfig.app['target_dir'] = self.ids.target_dir.text
@@ -636,6 +662,7 @@ class GuiApp(App):
         self.start_ndrop_server()
         Window.bind(on_drop_file=self.root.on_drop_file)
         Window.bind(on_drop_text=self.root.on_drop_text)
+        Clock.schedule_once(self.disable_splash_screen)
         return self.root
 
     def on_pause(self):
@@ -674,29 +701,32 @@ class GuiApp(App):
             daemon=True,
         ).start()
 
+    def disable_splash_screen(self, *args):
+        if kivy_platform == 'android':
+            from android import loadingscreen
+            loadingscreen.hide_loading_screen()
+
+    def ask_runtime_permission(self, permission):
+        """
+        WRITE_EXTERNAL_STORAGE
+        READ_EXTERNAL_STORAGE,
+        MANAGE_EXTERNAL_STORAGE,
+        INTERNET,
+        ACCESS_NETWORK_STATE,
+        ACCESS_WIFI_STATE,
+        """
+        if not kivy_platform == 'android':
+            return
+        from android.permissions import check_permission, request_permissions, Permission
+        android_permission = getattr(Permission, permission)
+        if not check_permission(android_permission):
+            request_permissions([android_permission])
+            if not check_permission(android_permission):
+                Logger.warn(f'Permission: Failed to request {permission}')
 
 def run():
-    Logger.info(f'Banner: {about.banner}')
+    Logger.info(f'Ndrop: {about.banner}')
     if kivy_platform == 'android':
-        from android import loadingscreen
-        loadingscreen.hide_loading_screen()
-        from android.permissions import check_permission, request_permissions, Permission
-        # request permission at packing
-        #     WRITE_EXTERNAL_STORAGE
-        #     READ_EXTERNAL_STORAGE,
-        #     Permission.INTERNET,
-        #     Permission.ACCESS_NETWORK_STATE,
-        #     Permission.ACCESS_WIFI_STATE,
-        runtime_permissions = [
-            Permission.WRITE_EXTERNAL_STORAGE,
-            Permission.READ_EXTERNAL_STORAGE,
-        ]
-        request_permissions(runtime_permissions)
-        for permission in runtime_permissions:
-            if not check_permission(permission):
-                request_permissions([permission])
-                if not check_permission(permission):
-                    Logger.warn(f'Permission: Failed to request {permission}')
         from android.storage import app_storage_path, primary_external_storage_path
         cfg_path = app_storage_path()
         cfg_file = os.path.join(cfg_path, 'ndrop.ini')
@@ -706,6 +736,7 @@ def run():
     else:
         init_config()
         Window.size = (320, 360)
+    Logger.info(f'Kivy: Platform: {kivy_platform}')
     Logger.info(f'Config file: {gConfig.__cfg_path}')
     Logger.info(f'Target dir: {gConfig.app["target_dir"]}')
 
