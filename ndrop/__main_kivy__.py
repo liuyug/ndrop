@@ -341,7 +341,7 @@ class RootWidget(BoxLayout):
         app = App.get_running_app()
         self.ids.you.node = app.host_node
         self.ids.ip.node = app.ip_node
-        Clock.schedule_once(app.disable_splash_screen)
+        Clock.schedule_once(app.remove_android_splash)
 
     def on_drop_file(self, widget, text, x, y, *args):
         # 当拖拽多个文件，会产生多个事件，每个事件一个文件
@@ -703,11 +703,6 @@ class GuiApp(App):
             target=self.server.wait_for_request,
             daemon=True,
         ).start()
-
-    def disable_splash_screen(self, *args):
-        if kivy_platform == 'android':
-            from android import loadingscreen
-            loadingscreen.hide_loading_screen()
 
     def ask_runtime_permission(self, permission):
         """
