@@ -119,6 +119,9 @@ class GUINetDropServer(NetDropServer):
         self.parent.on_recv_text(text, from_addr)
         return text
 
+    def recv_finish_file(self, path, from_addr):
+        super().recv_finish_file(path, from_addr)
+
     def recv_finish(self, from_addr, err):
         self.parent.host_client.result = (from_addr, err)
         super().recv_finish(from_addr, err)
@@ -138,6 +141,9 @@ class GUINetDropClient(NetDropClient):
         progress.lift()
         self.parent.progress = progress
         return progress
+
+    def send_finish_file(self, path):
+        super().send_finish_file(path)
 
     def send_finish(self, err):
         self.parent.result = (None, err)
@@ -271,7 +277,6 @@ class ScrolledWindow(ttk.Frame):
 class Client(ttk.Frame):
     node = None
     progress = None
-    agent = None
 
     def __init__(self, parent, node, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -342,7 +347,6 @@ class Client(ttk.Frame):
             elif item[0] == 'close':
                 self.progress.destroy()
                 self.progress = None
-                self.agent = None
                 from_addr, err = self.result
                 self.status.set(f'{self.node["ip"]} - {err} - {item[1]}')
 
@@ -359,9 +363,6 @@ class Client(ttk.Frame):
         self.event_generate(self.virtual_event)
 
     def click(self, event):
-        if self.agent:
-            logger.info('| => %(mode)s@%(name)s(%(ip)s)' % self.node)
-            return
         if self.node['type'] == 'host':
             logger.info('%(mode)s@%(name)s(%(ip)s)' % self.node)
             return
@@ -394,9 +395,6 @@ class Client(ttk.Frame):
                 return True
 
     def drop_position(self, event):
-        if self.agent:
-            # be trasfering
-            return tkdnd.REFUSE_DROP
         if self.node['type'] == 'host':
             return tkdnd.REFUSE_DROP
         if self.node['ip'] == '?':
@@ -424,8 +422,6 @@ class Client(ttk.Frame):
             return tkdnd.COPY
 
     def send_text(self, text):
-        if self.agent:
-            return
         agent = GUINetDropClient(self, self.node['ip'], self.node['mode'])
         threading.Thread(
             name='Ndrop client',
@@ -434,10 +430,10 @@ class Client(ttk.Frame):
         ).start()
 
     def send_files(self, files):
-        self.agent = GUINetDropClient(self, self.node['ip'], self.node['mode'])
+        agent = GUINetDropClient(self, self.node['ip'], self.node['mode'])
         threading.Thread(
             name='Ndrop client',
-            target=self.agent.send_files,
+            target=agent.send_files,
             args=(files, ),
         ).start()
 

@@ -253,6 +253,10 @@ class TCPHandler(socketserver.BaseRequestHandler):
         self.request.settimeout(20)
 
     def handle(self):
+        """
+        self.server: TCPServer
+        self.server.agent: DuktoServer
+        """
         logger.info('[Dukto] connect from %s:%s' % self.client_address)
         err = ''
         ret = None
@@ -391,6 +395,7 @@ class DuktoServer(Transport):
             self._upper_level.recv_finish_file(path, from_addr)
 
     def recv_finish(self, from_addr, err):
+        """当前任务全部完成，被TCPHandler调用"""
         self._upper_level.recv_finish(from_addr, err)
 
     def send_broadcast(self, data, port):
@@ -545,7 +550,9 @@ class DuktoClient(Transport):
         self._upper_level.send_feed_file(path, data, send_size, file_size, total_send_size, total_size)
 
     def send_finish_file(self, path):
+        """当前文件发送完成"""
         self._upper_level.send_finish_file(path)
 
     def send_finish(self, err):
+        """本次发送任务完成"""
         self._upper_level.send_finish(err)

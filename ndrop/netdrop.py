@@ -115,6 +115,7 @@ class NetDropServer(NetDrop):
         self._md5.update(data)
 
     def recv_finish_file(self, path, from_addr):
+        """接受当前文件完成"""
         if self._drop_directory == '-':
             self._file_io.flush()
         else:
@@ -133,7 +134,7 @@ class NetDropServer(NetDrop):
                 self._bar.write('%s' % (path), file=sys.stderr)
 
     def recv_finish(self, from_addr, err):
-        """interrupt current transport and finish immediately"""
+        """此次传输任务全部完成"""
         if self._bar is not None:
             self._bar.close()
             logger.info(err)
@@ -145,6 +146,7 @@ class NetDropServer(NetDrop):
         self._file_io.write(data)
 
     def recv_finish_text(self, from_addr):
+        """接受当前文本完成"""
         data = self._file_io.getvalue()
         text = data.decode('utf-8')
         logger.info('TEXT: %s' % text)

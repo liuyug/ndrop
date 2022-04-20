@@ -417,6 +417,7 @@ class NitroshareServer(Transport):
         self._upper_level.recv_finish_file(path, from_addr)
 
     def recv_finish(self, from_addr, err):
+        """当前任务全部完成"""
         self._upper_level.recv_finish(from_addr, err)
 
     def send_broadcast(self, data, port):

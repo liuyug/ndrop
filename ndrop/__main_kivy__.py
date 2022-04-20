@@ -106,6 +106,10 @@ class GUINetDropServer(NetDropServer):
     def recv_finish_text(self, from_addr):
         text = super().recv_finish_text(from_addr)
         self.parent.on_recv_text(text, from_addr)
+        return text
+
+    def recv_finish_file(self, path, from_addr):
+        super().recv_finish_file(path, from_addr)
 
     def recv_finish(self, from_addr, err):
         self.parent.root.ids.you.recv_finish(from_addr, err)
@@ -127,8 +131,11 @@ class GUINetDropClient(NetDropClient):
         Clock.schedule_once(self.init_widget)
         return pb
 
+    def send_finish_file(self, path):
+        super().send_finish_file(path)
+
     def send_finish(self, err):
-        self.parent.result = (None, err)
+        self.parent.send_finish(err)
         super().send_finish(err)
 
 
@@ -159,6 +166,12 @@ class SendWidget(BoxLayout):
             self.ids.nitroshare.active = True
         else:
             self.ids.dukto.active = True
+
+    def on_open(self):
+        if not self.ids.ip.text:
+            self.ids.ip.focus = True
+        else:
+            self.ids.message.focus = True
 
     def on_input_text(self, widget):
         if widget.text:
@@ -225,8 +238,8 @@ class SendWidget(BoxLayout):
 
 
 class ClientWidget(ButtonBehavior, BoxLayout):
-    agent = None
     progress = None
+    popup_sendmessage = None
     node = ObjectProperty(None)
     image_name = StringProperty()
 
@@ -259,8 +272,6 @@ class ClientWidget(ButtonBehavior, BoxLayout):
         self.progress = self.ids.progress
 
     def do_send_files(self, files, ip=None, mode=None):
-        if self.agent:
-            return
         ip = ip or self.node['ip']
         mode = mode or self.node['mode']
         agent = GUINetDropClient(self, ip, mode)
@@ -273,8 +284,16 @@ class ClientWidget(ButtonBehavior, BoxLayout):
     def update_message(self, dt, err):
         self.message = '%s - %s' % (self.node['ip'], err)
 
+    def send_finish(self, err):
+        """被GUINetDropClient调用，通知本次发送任务完成"""
+        if err == 'done':
+            err = 'ready'
+        Clock.schedule_once(partial(self.update_message, err=err))
+
     def recv_finish(self, from_addr, err):
-        self.agent = None
+        """被GUINetDropServer调用，通知本次接收任务完成"""
+        if err == 'done':
+            err = 'ready'
         Clock.schedule_once(partial(self.update_message, err=err))
 
     def do_send_text(self, text, ip=None, mode=None):
@@ -288,27 +307,29 @@ class ClientWidget(ButtonBehavior, BoxLayout):
         ).start()
 
     def on_press(self):
-        if self.agent:
-            return
         if self.node['type'] == 'host':
             return
-        content = SendWidget(ip=self.node['ip'], mode=self.node['mode'])
-        self._popup = Popup(
-            title="Send",
-            title_color=(0, 0, 0, 1),
-            content=content,
-            auto_dismiss=False,
-            background='',
-        )
-        content.dismiss = self._popup.dismiss
-        content.do_send_text = self.do_send_text
-        content.do_send_files = self.do_send_files
-        self._popup.open()
+        if not self.popup_sendmessage:
+            content = SendWidget(ip=self.node['ip'], mode=self.node['mode'])
+            self.popup_sendmessage = Popup(
+                title="Send",
+                title_color=(0, 0, 0, 1),
+                content=content,
+                auto_dismiss=False,
+                background='',
+            )
+            self.popup_sendmessage.on_open = content.on_open
+            content.dismiss = self.popup_sendmessage.dismiss
+            content.do_send_text = self.do_send_text
+            content.do_send_files = self.do_send_files
+        self.popup_sendmessage.open()
 
 
 class RootWidget(BoxLayout):
     messagebox = None
-    _popup_messagebox = None
+    popup_hfs = None
+    popup_messagebox = None
+    popup_config = None
 
     def __init__(self, **kwargs):
         super(RootWidget, self).__init__(**kwargs)
@@ -319,6 +340,7 @@ class RootWidget(BoxLayout):
         app = App.get_running_app()
         self.ids.you.node = app.host_node
         self.ids.ip.node = app.ip_node
+        Clock.schedule_once(app.disable_splash_screen)
 
     def on_drop_file(self, widget, text, x, y, *args):
         # 当拖拽多个文件，会产生多个事件，每个事件一个文件
@@ -346,27 +368,24 @@ class RootWidget(BoxLayout):
 
     def recv_text(self, dt, text):
         self.messagebox.append_text(text)
-        if not self._popup_messagebox:
-            self._popup_messagebox = Popup(
+        if not self.popup_messagebox:
+            self.popup_messagebox = Popup(
                 title="MessageBox",
                 title_color=(0, 0, 0, 1),
                 content=self.messagebox,
                 auto_dismiss=False,
                 background='',
             )
-            self.messagebox.dismiss = partial(
-                self.popup_dismiss,
-                popup='messagebox',
-            )
+            self.messagebox.dismiss = self.popup_messagebox_dismiss
             self.is_messagebox_open = False
+        # 被动打开窗口
         if not self.is_messagebox_open:
-            self._popup_messagebox.open()
+            self.popup_messagebox.open()
             self.is_messagebox_open = True
 
-    def popup_dismiss(self, popup):
-        if popup == 'messagebox':
-            self._popup_messagebox.dismiss()
-            self.is_messagebox_open = False
+    def popup_messagebox_dismiss(self):
+        self.popup_messagebox.dismiss()
+        self.is_messagebox_open = False
 
     def on_ndrop_event(self, args):
         layout = self.ids.scroll_layout
@@ -393,7 +412,7 @@ class RootWidget(BoxLayout):
             return True
         elif args['action'] == 'recv_text':
             text = args['text']
-            from_addr = '%s:%s' % args['from_addr']
+            ip, port = args['from_addr']
             if gConfig.app['create_node_by_text']:
                 # add node
                 recv_node = {}
@@ -401,13 +420,13 @@ class RootWidget(BoxLayout):
                 recv_node['name'] = 'Unknown'
                 recv_node['operating_system'] = 'ip'
                 recv_node['mode'] = 'Dukto'
-                recv_node['ip'] = args['from_addr'][0]
+                recv_node['ip'] = ip
                 recv_node['type'] = 'text'
                 self.dispatch('on_ndrop_event', {
                     'action': 'add_node',
                     'node': recv_node,
                 })
-            message = f'{from_addr:21}: {text}'
+            message = f'{ip}: {text}'
             Logger.info(f'{about.name} TEXT: {message}')
             Clock.schedule_once(partial(self.recv_text, text=message))
             return True
@@ -418,28 +437,30 @@ class RootWidget(BoxLayout):
         webbrowser.open(file_url)
 
     def show_config(self):
-        content = ConfigWidget()
-        self._popup = Popup(
-            title="Config",
-            title_color=(0, 0, 0, 1),
-            content=content,
-            auto_dismiss=False,
-            background='',
-        )
-        content.dismiss = self._popup.dismiss
-        self._popup.open()
+        if not self.popup_config:
+            content = ConfigWidget()
+            self.popup_config = Popup(
+                title="Config",
+                title_color=(0, 0, 0, 1),
+                content=content,
+                auto_dismiss=False,
+                background='',
+            )
+            content.dismiss = self.popup_config.dismiss
+        self.popup_config.open()
 
     def show_hfs(self):
-        content = HFSWidget()
-        self._popup = Popup(
-            title="HFS",
-            title_color=(0, 0, 0, 1),
-            content=content,
-            auto_dismiss=False,
-            background='',
-        )
-        content.dismiss = self._popup.dismiss
-        self._popup.open()
+        if not self.popup_hfs:
+            content = HFSWidget()
+            self.popup_hfs = Popup(
+                title="HFS",
+                title_color=(0, 0, 0, 1),
+                content=content,
+                auto_dismiss=False,
+                background='',
+            )
+            content.dismiss = self.popup_hfs.dismiss
+        self.popup_hfs.open()
 
 
 class CheckLabelBox(BoxLayout):
@@ -640,7 +661,6 @@ class GuiApp(App):
         self.start_ndrop_server()
         Window.bind(on_drop_file=self.root.on_drop_file)
         Window.bind(on_drop_text=self.root.on_drop_text)
-        Clock.schedule_once(self.disable_splash_screen)
         return self.root
 
     def on_stop(self):
