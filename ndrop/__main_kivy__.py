@@ -497,7 +497,6 @@ class FileChooserWidget(FloatLayout):
     def ask_files(path=None, rootpath=None, callback=None):
         App.get_running_app().ask_runtime_permission('READ_EXTERNAL_STORAGE')
         # 当选择多个文件时，List视图不能显示选中的文件
-        print(path, rootpath)
         content = FileChooserWidget(path=path, rootpath=rootpath)
         popup = Popup(
             title="Select folder",
@@ -537,7 +536,7 @@ class ConfigWidget(BoxLayout):
         gConfig.app['target_dir'] = self.ids.target_dir.text
         gConfig.app['create_node_by_text'] = self.ids.create_node_by_text.active
         save_config()
-        Logger.info('ndrop: Write config: {gConfig.__cfg_path}')
+        Logger.info(f'ndrop: Write config: {gConfig.__cfg_path}')
         app = App.get_running_app()
         app.server.saved_to(gConfig.app['target_dir'])
         self.dismiss()
