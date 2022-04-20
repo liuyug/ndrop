@@ -19,27 +19,33 @@ class gConfig():
     pass
 
 
-def init_config(cfg_path=None):
+def init_config(cfg_path=None, target_dir=None):
     config = ConfigParser()
 
     dirs = PlatformDirs('ndrop', '')
-    if True:
+    if False:
+        # user_data_dir: /data/user/0/org.network.ndrop/files/ndrop
+        # user_cache_dir: /data/user/0/org.network.ndrop/cache/ndrop
+        # user_log_dir: /data/user/0/org.network.ndrop/cache/ndrop/log
+        # user_config_dir: /data/user/0/org.network.ndrop/shared_prefs/ndrop
+        # user_documents_dir: /storage/emulated/0/Android/data/org.network.ndrop/files/Documents
+        # user_runtime_dir: /data/user/0/org.network.ndrop/cache/ndrop/tmp
         appname = 'ndrop'
         appauthor = ''
-        print('user_data_dir:', dirs.user_data_dir(appname, appauthor))
-        print('user_cache_dir:', dirs.user_cache_dir(appname, appauthor))
-        print('user_log_dir:', dirs.user_log_dir(appname, appauthor))
-        print('user_config_dir:', dirs.user_config_dir(appname))
-        print('user_documents_dir:', dirs.user_documents_dir())
-        print('user_runtime_dir:', dirs.user_runtime_dir(appname, appauthor))
+        print('user_data_dir:', dirs.user_data_dir)
+        print('user_cache_dir:', dirs.user_cache_dir)
+        print('user_log_dir:', dirs.user_log_dir)
+        print('user_config_dir:', dirs.user_config_dir)
+        print('user_documents_dir:', dirs.user_documents_dir)
+        print('user_runtime_dir:', dirs.user_runtime_dir)
 
     if not cfg_path:
         cfg_path = os.path.join(dirs.user_config_dir, 'ndrop.ini')
-    gConfig.config_path = cfg_path
 
     gConfig.config_path = cfg_path
     if not os.path.exists(cfg_path):
-        target_dir = dirs.user_documents_dir
+        if not target_dir:
+            target_dir = dirs.user_documents_dir
         cfg_text = f"""[app]
 target_dir = {target_dir}
 enable_hdpi = False

@@ -342,7 +342,6 @@ class RootWidget(BoxLayout):
         app = App.get_running_app()
         self.ids.you.node = app.host_node
         self.ids.ip.node = app.ip_node
-        Clock.schedule_once(app.fix_android_splash)
 
     def on_drop_file(self, widget, text, x, y, *args):
         # 当拖拽多个文件，会产生多个事件，每个事件一个文件
@@ -625,6 +624,9 @@ class GuiApp(App):
     ip_node = None
 
     def build(self):
+        self.title = 'NDrop'
+        self.init_config()
+
         kv_dir = os.path.dirname(__file__)
         self.image_dir = os.path.join(kv_dir, 'image')
 
@@ -659,7 +661,68 @@ class GuiApp(App):
         self.start_ndrop_server()
         Window.bind(on_drop_file=self.root.on_drop_file)
         Window.bind(on_drop_text=self.root.on_drop_text)
+            Clock.schedule_once(self.fix_android_splash)
         return self.root
+
+    def init_config(self):
+        if kivy_platform == 'android':
+            try:
+                from android.storage import app_storage_path, primary_external_storage_path
+                Logger.info(f'Ndrop: app_storage_path: {app_storage_path()}')
+                Logger.info(f'Ndrop: primary_external_storage_path: {primary_external_storage_path()}')
+                cfg_path = os.path.join(app_storage_path(), 'ndrop.ini')
+                target_dir = os.path.join(primary_external_storage_path(), 'Download')
+                init_config(cfg_path, target_dir)
+                gConfig.app['android_rootpath'] = primary_external_storage_path()
+                Window.minimum_width, Window.minimum_height = 320, 360
+                Window.fullscreen = 'auto'
+            except ImportError:
+                Logger.warn('Kivy: not found "android" packge')
+                return
+        else:
+            init_config()
+            Window.fullscreen = False
+            Window.minimum_width, Window.minimum_height = 320, 360
+            Window.size = (320, 360)
+
+        # Kivy config
+        Logger.info(f'Kivy: Platform: {kivy_platform}')
+        Logger.info(f'Kivy: Config file: {Config.filename}')
+        Logger.info(f'Kivy: user_data_dir: {self.user_data_dir}')
+        Logger.info(f'Ndrop: Config file: {gConfig.config_path}')
+        Logger.info(f'Ndrop: Target dir: {gConfig.app["target_dir"]}')
+
+        default_font = Config.get('kivy', 'default_font').strip()
+        Logger.info(f'Ndrop: Font: {default_font}')
+
+        if Config.has_option('kivy', 'default_font_orig'):
+            default_font_orig = Config.get('kivy', 'default_font_orig').strip()
+        else:
+            default_font_orig = default_font
+            Config.set('kivy', 'default_font_orig', default_font_orig)
+
+        default_font_orig = default_font
+        if kivy_platform == 'android':
+            cjk_font = 'NotoSansCJK-Regular.ttc'
+            resource_add_path(r'/system/fonts')
+        elif kivy_platform == 'win':
+            cjk_font = 'msyh.ttc'
+            resource_add_path(r'C:\Windows\Fonts')
+        elif kivy_platform == 'linux':
+            resource_add_path(r'/usr/share/fonts/truetype/droid')
+            cjk_font = 'DroidSansFallbackFull.ttf'
+        else:
+            cjk_font = None
+        if cjk_font and cjk_font not in default_font:
+            cjk_font_path = resource_find(cjk_font)
+            # Kivy font: ['Roboto', 'data/fonts/Roboto-Regular.ttf', 'data/fonts/Roboto-Italic.ttf', 'data/fonts/Roboto-Bold.ttf', 'data/fonts/Roboto-BoldItalic.ttf']
+            # kivy/core/text/__init__.py register(name, fn_regular, fn_italic=None, fn_bold=None, fn_bolditalic=None):
+            if cjk_font_path:
+                fonts = [f.strip("' ") for f in default_font_orig.strip('[]').split(',')]
+                fonts[1] = cjk_font_path
+                Config.set('kivy', 'default_font', str(fonts))
+                Logger.info(f'Ndrop: Fix Font: {fonts}')
+        Config.write()
 
     def on_stop(self):
         self.server.quit()
@@ -706,6 +769,7 @@ class GuiApp(App):
             return
         try:
             from android import remove_presplash
+            print('remove splash')
             remove_presplash()
         except ImportError:
             Logger.warning(
@@ -736,57 +800,6 @@ class GuiApp(App):
 
 def run():
     Logger.info(f'Ndrop: {about.banner}')
-    if kivy_platform == 'android':
-        try:
-            from android.storage import app_storage_path, primary_external_storage_path
-            Logger.info(f'Ndrop: app_storage_path: {app_storage_path()}')
-            Logger.info(f'Ndrop: primary_external_storage_path: {primary_external_storage_path()}')
-            init_config()
-            gConfig.app['android_rootpath'] = primary_external_storage_path()
-            Window.minimum_width, Window.minimum_height = 320, 360
-            Window.fullscreen = True
-        except ImportError:
-            Logger.warn('Kivy: not found "android" packge')
-            return
-    else:
-        init_config()
-        Window.fullscreen = False
-        Window.minimum_width, Window.minimum_height = 320, 360
-        Window.size = (320, 360)
-    Logger.info(f'Kivy: Platform: {kivy_platform}')
-    Logger.info(f'Ndrop: Config file: {gConfig.config_path}')
-    Logger.info(f'Ndrop: Target dir: {gConfig.app["target_dir"]}')
-
-    default_font = Config.get('kivy', 'default_font').strip()
-    Logger.info(f'Ndrop: Font: {default_font}')
-    if Config.has_option('kivy', 'default_font_orig'):
-        default_font_orig = Config.get('kivy', 'default_font_orig').strip()
-    else:
-        default_font_orig = default_font
-        Config.set('kivy', 'default_font_orig', default_font_orig)
-        Config.write()
-    if kivy_platform == 'android':
-        cjk_font = 'NotoSansCJK-Regular.ttc'
-        resource_add_path(r'/system/fonts')
-    elif kivy_platform == 'win':
-        cjk_font = 'msyh.ttc'
-        resource_add_path(r'C:\Windows\Fonts')
-    elif kivy_platform == 'linux':
-        resource_add_path(r'/usr/share/fonts/truetype/droid')
-        cjk_font = 'DroidSansFallbackFull.ttf'
-    else:
-        cjk_font = None
-    if cjk_font and cjk_font not in default_font:
-        cjk_font_path = resource_find(cjk_font)
-        # Kivy font: ['Roboto', 'data/fonts/Roboto-Regular.ttf', 'data/fonts/Roboto-Italic.ttf', 'data/fonts/Roboto-Bold.ttf', 'data/fonts/Roboto-BoldItalic.ttf']
-        # kivy/core/text/__init__.py register(name, fn_regular, fn_italic=None, fn_bold=None, fn_bolditalic=None):
-        if cjk_font_path:
-            fonts = [f.strip("' ") for f in default_font_orig.strip('[]').split(',')]
-            fonts[1] = cjk_font_path
-            Config.set('kivy', 'default_font', str(fonts))
-            Config.write()
-            Logger.info(f'Ndrop: Fix Font: {fonts}')
-
     app_logger = logging.getLogger(__name__.rpartition('.')[0])
     app_logger.setLevel(logging.INFO)
 
