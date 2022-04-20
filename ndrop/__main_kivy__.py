@@ -536,7 +536,7 @@ class ConfigWidget(BoxLayout):
         gConfig.app['target_dir'] = self.ids.target_dir.text
         gConfig.app['create_node_by_text'] = self.ids.create_node_by_text.active
         save_config()
-        Logger.info(f'ndrop: Write config: {gConfig.__cfg_path}')
+        Logger.info(f'Ndrop: Write config: {gConfig.config_path}')
         app = App.get_running_app()
         app.server.saved_to(gConfig.app['target_dir'])
         self.dismiss()
@@ -756,7 +756,7 @@ def run():
         Window.minimum_width, Window.minimum_height = 320, 360
         Window.size = (320, 360)
     Logger.info(f'Kivy: Platform: {kivy_platform}')
-    Logger.info(f'Config file: {gConfig.__cfg_path}')
+    Logger.info(f'Config file: {gConfig.config_path}')
     Logger.info(f'Target dir: {gConfig.app["target_dir"]}')
 
     default_font = Config.get('kivy', 'default_font').strip()

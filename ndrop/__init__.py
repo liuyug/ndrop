@@ -23,7 +23,7 @@ def init_config(cfg_path=None):
     dirs = PlatformDirs('ndrop', '')
     if not cfg_path:
         cfg_path = os.path.join(dirs.user_config_dir, 'ndrop.ini')
-    gConfig.__cfg_path = cfg_path
+    gConfig.config_path = cfg_path
     if not os.path.exists(cfg_path):
         target_dir = dirs.user_documents_dir
         cfg_text = f"""[app]
@@ -50,10 +50,12 @@ create_node_by_text = True
 
 def save_config(cfg_path=None):
     if not cfg_path:
-        cfg_path = gConfig.__cfg_path
+        cfg_path = gConfig.config_path
     config = ConfigParser()
     for item in dir(gConfig):
         if item.startswith('__'):
+            continue
+        if item == 'config_path':
             continue
         value = getattr(gConfig, item)
         config[item] = value
