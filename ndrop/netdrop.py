@@ -60,10 +60,14 @@ class NetDropServer(NetDrop):
                     if transport in r:
                         transport.handle_request()
         except KeyboardInterrupt:
-            for transport in self._transport:
-                transport.recv_finish(transport._ip_addrs[0], 'quit')
-                transport.quit_request()
+            self.quit()
             logger.info('\n-- Quit --')
+
+    def quit(self):
+        for transport in self._transport:
+            logger.info('Quit: %s' % transport)
+            transport.recv_finish(transport._ip_addrs[0], 'quit')
+            transport.quit_request()
 
     def saved_to(self, path):
         if path == '-':

@@ -108,8 +108,6 @@ class GUINetDropServer(NetDropServer):
         self.parent.on_recv_text(text, from_addr)
 
     def recv_finish(self, from_addr, err):
-        if err != 'done':
-            Logger.warn(f'ndrop TEXT: {from_addr} {err}')
         self.parent.root.ids.you.recv_finish(from_addr, err)
         super().recv_finish(from_addr, err)
 
@@ -495,25 +493,6 @@ class FileChooserWidget(FloatLayout):
         content.cancel = popup.dismiss
         popup.open()
 
-    def ask_files2(path=None, *args, **kwargs):
-        browser = FileBrowser(
-            select_string='Select',
-            favorites=[(path, 'Documents')]
-        )
-        browser.bind(on_success=self._fbrowser_success,
-                     on_canceled=self._fbrowser_canceled,
-                     on_submit=self._fbrowser_submit)
-        return browser
-
-    def _fbrowser_canceled(self, instance):
-        print('cancelled, Close self.')
-
-    def _fbrowser_success(self, instance):
-        print(instance.selection)
-
-    def _fbrowser_submit(self, instance):
-        print(instance.selection)
-
 
 class ConfigWidget(BoxLayout):
     dismiss = ObjectProperty(None)
@@ -530,11 +509,10 @@ class ConfigWidget(BoxLayout):
         self.ids.target_dir.text = path
 
     def on_change_folder(self):
-        fbrower = FileChooserWidget.ask_files2(
+        FileChooserWidget.ask_files(
             path=gConfig.app['target_dir'],
             callback=self.on_get_folder,
         )
-        self.ids.target_dir.text = fbrower.path
 
     def on_ok(self):
         gConfig.app['target_dir'] = self.ids.target_dir.text
@@ -665,6 +643,10 @@ class GuiApp(App):
         Clock.schedule_once(self.disable_splash_screen)
         return self.root
 
+    def on_stop(self):
+        self.server.quit()
+        Logger.info('ndrop: quit')
+
     def on_pause(self):
         return True
 
@@ -723,6 +705,7 @@ class GuiApp(App):
             request_permissions([android_permission])
             if not check_permission(android_permission):
                 Logger.warn(f'Permission: Failed to request {permission}')
+
 
 def run():
     Logger.info(f'Ndrop: {about.banner}')

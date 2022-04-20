@@ -298,6 +298,9 @@ class DuktoServer(Transport):
     _nodes = None
     _loop_hello = True
 
+    def __repr__(self):
+        return '<DuktoServer>'
+
     def __init__(self, upper_level, addr, ssl_ck=None):
         if ssl_ck:
             self._cert, self._key = ssl_ck

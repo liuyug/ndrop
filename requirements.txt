@@ -4,4 +4,3 @@ pillow
 kivy
 platformdirs
 # plyer
-kivy_garden.filebrowser

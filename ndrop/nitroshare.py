@@ -329,6 +329,9 @@ class NitroshareServer(Transport):
     _loop_hello = True
     _hello_interval = 2
 
+    def __repr__(self):
+        return '<NitroshareServer>'
+
     def __init__(self, upper_level, addr, ssl_ck=None):
         if ssl_ck:
             self._cert, self._key = ssl_ck

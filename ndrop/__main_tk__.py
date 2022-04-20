@@ -864,6 +864,8 @@ class GuiApp(tkdnd.Tk):
         label.grid(row=0, column=3, padx=10, pady=5)
         label.bind('<Button-1>', self.show_hfs)
 
+        self.protocol("WM_DELETE_WINDOW", self.on_quit)
+
         footer.columnconfigure(0, weight=1)
         footer.columnconfigure(4, weight=1)
 
@@ -871,6 +873,10 @@ class GuiApp(tkdnd.Tk):
         self.columnconfigure(0, weight=1)
 
         self.bind('<<server_queue_event>>', self.queue_handler)
+
+    def on_quit(self):
+        self.server.quit()
+        self.destroy()
 
     def on_add_node(self, node):
         self.queue.put_nowait(('add_node', node))
