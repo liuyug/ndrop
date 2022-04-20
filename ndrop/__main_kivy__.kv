@@ -30,6 +30,7 @@
         on_press: root.on_label_click(cb)
 <FileChooserWidget>:
     path: ''
+    rootpath: None
     BoxLayout:
         size: root.size
         pos: root.pos
@@ -39,6 +40,9 @@
             show_hidden: False
             multiselect: True
             path: root.path
+            rootpath: root.rootpath
+            on_entry_added: root.update_file_list_entry(*args)
+            on_subentry_to_entry: root.update_file_list_entry(*args)
         BoxLayout:
             size_hint_y: None
             height: default_height
@@ -138,8 +142,8 @@
             pos: self.pos
             size: self.size
     size_hint: 1, None
-    height: sp(66)
-    padding: 1
+    height: sp(68)
+    padding: sp(2)
     texture: None
     source: None
     user: ''

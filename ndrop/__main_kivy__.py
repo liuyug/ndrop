@@ -221,6 +221,7 @@ class SendWidget(BoxLayout):
     def on_send_files(self):
         FileChooserWidget.ask_files(
             path=gConfig.app['target_dir'],
+            rootpath=gConfig.app.get('android_rootpath'),
             callback=self.on_get_files,
         )
 
@@ -473,20 +474,14 @@ class CheckLabelBox(BoxLayout):
 
 
 class FileChooserWidget(FloatLayout):
-    path = StringProperty()
     callback = None
     select = ObjectProperty(None)
     cancel = ObjectProperty(None)
 
-    def __init__(self, path=None, **kwargs):
+    def __init__(self, path=None, rootpath=None, **kwargs):
         super().__init__(**kwargs)
         self.path = path
-        Clock.schedule_once(self.init_widget)
-
-    def init_widget(self, *args):
-        self.ids.filechooser.path = self.path
-        self.ids.filechooser.bind(on_entry_added=self.update_file_list_entry)
-        self.ids.filechooser.bind(on_subentry_to_entry=self.update_file_list_entry)
+        self.rootpath = rootpath
 
     def update_file_list_entry(self, file_chooser, file_list_entry, *args):
         for layout in file_list_entry.children:
@@ -499,10 +494,11 @@ class FileChooserWidget(FloatLayout):
         self.popup.dismiss()
 
     @staticmethod
-    def ask_files(path=None, callback=None):
+    def ask_files(path=None, rootpath=None, callback=None):
         App.get_running_app().ask_runtime_permission('READ_EXTERNAL_STORAGE')
         # 当选择多个文件时，List视图不能显示选中的文件
-        content = FileChooserWidget(path=path)
+        print(path, rootpath)
+        content = FileChooserWidget(path=path, rootpath=rootpath)
         popup = Popup(
             title="Select folder",
             title_color=(0, 0, 0, 1),
@@ -533,6 +529,7 @@ class ConfigWidget(BoxLayout):
     def on_change_folder(self):
         FileChooserWidget.ask_files(
             path=gConfig.app['target_dir'],
+            rootpath=gConfig.app.get('android_rootpath'),
             callback=self.on_get_folder,
         )
 
@@ -540,6 +537,7 @@ class ConfigWidget(BoxLayout):
         gConfig.app['target_dir'] = self.ids.target_dir.text
         gConfig.app['create_node_by_text'] = self.ids.create_node_by_text.active
         save_config()
+        Logger.info('ndrop: Write config: {gConfig.__cfg_path}')
         app = App.get_running_app()
         app.server.saved_to(gConfig.app['target_dir'])
         self.dismiss()
@@ -747,10 +745,12 @@ def run():
             cfg_file = None
             init_config(cfg_file)
             gConfig.app['target_dir'] = os.path.join(primary_external_storage_path(), 'Download')
+            gConfig.app['android_rootpath'] = primary_external_storage_path()
             Window.minimum_width, Window.minimum_height = 320, 360
             Window.fullscreen = True
         except ImportError:
             Logger.warn('Kivy: not found "android" packge')
+            return
     else:
         init_config()
         Window.fullscreen = False
