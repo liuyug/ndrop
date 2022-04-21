@@ -1,0 +1,9 @@
+__pycache__/*
+tkinterdnd2/*
+tkinterdnd2-master.zip
+.git/*
+.gitignore
+__main_tk__.*
+*.sh
+*.cmd
+*.nsi
