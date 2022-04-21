@@ -21,12 +21,44 @@ from .transport import get_broadcast_address, human_size, \
 
 from .image import NdropImage
 
-from kivy.app import App
 from kivy.config import Config
+from kivy.resources import resource_add_path, resource_find
 from kivy.logger import Logger
+from kivy.utils import platform as kivy_platform
+# Config.set should be used before importing any other Kivy modules to apply these settings
+
+
+def init_kivy_config():
+    default_font = Config.get('kivy', 'default_font').strip()
+    Logger.info(f'Ndrop: Font: {default_font}')
+
+    if kivy_platform == 'android':
+        cjk_font = 'NotoSansCJK-Regular.ttc'
+        resource_add_path(r'/system/fonts')
+    elif kivy_platform == 'win':
+        cjk_font = 'msyh.ttc'
+        resource_add_path(r'C:\Windows\Fonts')
+    elif kivy_platform == 'linux':
+        resource_add_path(r'/usr/share/fonts/truetype/droid')
+        cjk_font = 'DroidSansFallbackFull.ttf'
+    else:
+        cjk_font = None
+
+    if cjk_font:
+        cjk_font_path = resource_find(cjk_font)
+        # Kivy font: ['Roboto', 'data/fonts/Roboto-Regular.ttf', 'data/fonts/Roboto-Italic.ttf', 'data/fonts/Roboto-Bold.ttf', 'data/fonts/Roboto-BoldItalic.ttf']
+        # kivy/core/text/__init__.py register(name, fn_regular, fn_italic=None, fn_bold=None, fn_bolditalic=None):
+        if cjk_font_path:
+            fonts = [f.strip("' ") for f in default_font.strip('[]').split(',')]
+            fonts[1] = cjk_font_path
+            Config.set('kivy', 'default_font', str(fonts))
+            Logger.info(f'Ndrop: Fix Font: {fonts}')
+
+
+init_kivy_config()
+from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.window import Window
-from kivy.resources import resource_add_path, resource_find
 from kivy.uix.behaviors.button import ButtonBehavior
 from kivy.uix.popup import Popup
 from kivy.uix.progressbar import ProgressBar
@@ -39,7 +71,6 @@ from kivy.graphics import Color, Rectangle
 from kivy.core.image import Image as CoreImage
 from kivy.graphics.texture import Texture
 from kivy.properties import StringProperty, ObjectProperty
-from kivy.utils import platform as kivy_platform
 
 
 logger = logging.getLogger(__name__)
@@ -695,39 +726,6 @@ class GuiApp(App):
         Logger.info(f'Ndrop: Platform: {get_platform_system()}')
         Logger.info(f'Ndrop: Config file: {gConfig.config_path}')
         Logger.info(f'Ndrop: Target dir: {gConfig.app["target_dir"]}')
-
-        default_font = Config.get('kivy', 'default_font').strip()
-        Logger.info(f'Ndrop: Font: {default_font}')
-
-        if Config.has_option('kivy', 'default_font_orig'):
-            default_font_orig = Config.get('kivy', 'default_font_orig').strip()
-        else:
-            default_font_orig = default_font
-            Config.set('kivy', 'default_font_orig', default_font_orig)
-
-        default_font_orig = default_font
-        if kivy_platform == 'android':
-            cjk_font = 'NotoSansCJK-Regular.ttc'
-            resource_add_path(r'/system/fonts')
-        elif kivy_platform == 'win':
-            cjk_font = 'msyh.ttc'
-            resource_add_path(r'C:\Windows\Fonts')
-        elif kivy_platform == 'linux':
-            resource_add_path(r'/usr/share/fonts/truetype/droid')
-            cjk_font = 'DroidSansFallbackFull.ttf'
-        else:
-            cjk_font = None
-        if cjk_font and cjk_font not in default_font:
-            cjk_font_path = resource_find(cjk_font)
-            # Kivy font: ['Roboto', 'data/fonts/Roboto-Regular.ttf', 'data/fonts/Roboto-Italic.ttf', 'data/fonts/Roboto-Bold.ttf', 'data/fonts/Roboto-BoldItalic.ttf']
-            # kivy/core/text/__init__.py register(name, fn_regular, fn_italic=None, fn_bold=None, fn_bolditalic=None):
-            if cjk_font_path:
-                fonts = [f.strip("' ") for f in default_font_orig.strip('[]').split(',')]
-                fonts[1] = cjk_font_path
-                Config.set('kivy', 'default_font', str(fonts))
-                Logger.info(f'Ndrop: Fix Font: {fonts}')
-
-        Config.write()
 
     def hook_key(self, window, key, *args):
         if key in [27]:
