@@ -71,10 +71,9 @@ class NetDropServer(NetDrop):
     def check_drop_directory(self):
         if os.access(self._drop_directory, os.W_OK):
             self._read_only = False
-            logger.warn('Maybe to WRITE: %s' % self._drop_directory)
         else:
             self._read_only = True
-            logger.warn('No permission to WRITE: %s' % self._drop_directory)
+        return self._read_only
 
     def saved_to(self, path):
         if path == '-':
@@ -86,7 +85,6 @@ class NetDropServer(NetDrop):
             logger.error('File exists: %s !!!' % path)
             return
         self._drop_directory = os.path.abspath(path)
-        self.check_drop_directory()
 
     def recv_feed_file(self,
                        path, data,
@@ -100,9 +98,12 @@ class NetDropServer(NetDrop):
             path = path.replace('/', os.sep)
             if self._drop_directory == '-':
                 self._file_io = sys.stdout.buffer
-            elif self._read_only:
-                logger.warn('No permission WRITING to "%s" and drop it...' % os.path.join(
+            elif self.check_drop_directory():
+                logger.warn('No permission WRITING to "%s" and drop all data...' % os.path.join(
                     self._drop_directory, path))
+                # create null file for readonly
+                name = os.devnull
+                self._file_io = open(name, 'wb')
             else:
                 name = os.path.join(self._drop_directory, path)
                 if file_size < 0:    # directory
@@ -110,12 +111,11 @@ class NetDropServer(NetDrop):
                         os.mkdir(name)
                 else:
                     self._file_io = open(name, 'wb')
-            if file_size < 0:
-                return
             self._md5 = hashlib.md5()  # create md5 for file
 
-        if self._file_io and not self._read_only:
-            self._file_io.write(data)
+        if file_size < 0:
+            return
+        self._file_io.write(data)
         self._bar.update(len(data))
         self._md5.update(data)
 

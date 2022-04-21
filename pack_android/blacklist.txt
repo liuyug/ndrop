@@ -1,6 +1,7 @@
 __pycache__/*
 tkinterdnd2/*
 tkinterdnd2-master.zip
+pack_android/*
 .git/*
 .gitignore
 __main_tk__.*

@@ -41,8 +41,6 @@ from kivy.graphics.texture import Texture
 from kivy.properties import StringProperty, ObjectProperty
 from kivy.utils import platform as kivy_platform
 
-from kivy_garden.filebrowser import FileBrowser
-
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +74,7 @@ class GUIProgressBar(ProgressBar):
             speed = sum(self.count) / (len([x for x in self.count if x != 0]) * self.interval / 1000)
             self.speed = f'{human_size(speed):>9}/s'
         self.step_count = 0
+        self.update(0)
 
 
 class GUINetDropServer(NetDropServer):
@@ -731,15 +730,15 @@ class GuiApp(App):
 
         Config.write()
 
-    def android_back_click(self, window, key, *largs):
-        if key == 27:
-            internal = 3
+    def android_back_click(self, window, key, *args):
+        if key in [27, 1001]:
+            internal = 2
             click_time = datetime.datetime.now()
-            Logger.info(f'Ndrop: press back button. click time: {click_time}, last time: {self.last_click_time}')
-            if (click_time - self.last_click_time).seconds < internal:
-                Logger.info('Ndrop: request to quit!')
+            if (click_time - self.last_click_time).seconds > internal:
+                Logger.info('Ndrop: double back click to quit!')
+                self.last_click_time = click_time
                 return True
-            self.last_click_time = click_time
+            Logger.info('Ndrop: request to quit!')
 
     def on_stop(self):
         self.server.quit()

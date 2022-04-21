@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SDK_DIR="$HOME/ndrop/android/sdk"
+SDK_DIR="$HOME/android_sdk/sdk"
 BUILD_TOOLS="$SDK_DIR/build-tools/28.0.3"
 
 if [ "x" == "x$1" ]; then
