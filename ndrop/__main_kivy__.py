@@ -621,6 +621,7 @@ class HFSWidget(BoxLayout):
 class GuiApp(App):
     host_node = None
     ip_node = None
+    last_click_time = None
 
     def build(self):
         self.title = 'NDrop'
@@ -661,9 +662,7 @@ class GuiApp(App):
         self.start_ndrop_server()
         Window.bind(on_drop_file=self.root.on_drop_file)
         Window.bind(on_drop_text=self.root.on_drop_text)
-        if kivy_platform == 'android':
-            self.last_click_time = datetime.datetime.now()
-            Window.bind(on_keyboard=self.android_back_click)
+        Window.bind(on_keyboard=self.hook_key)
         Clock.schedule_once(self.fix_android_splash)
         return self.root
 
@@ -730,11 +729,11 @@ class GuiApp(App):
 
         Config.write()
 
-    def android_back_click(self, window, key, *args):
-        if key in [27, 1001]:
-            internal = 2
+    def hook_key(self, window, key, *args):
+        if key in [27]:
+            internal = 1
             click_time = datetime.datetime.now()
-            if (click_time - self.last_click_time).seconds > internal:
+            if not self.last_click_time or (click_time - self.last_click_time).seconds > internal:
                 Logger.info('Ndrop: double back click to quit!')
                 self.last_click_time = click_time
                 return True
