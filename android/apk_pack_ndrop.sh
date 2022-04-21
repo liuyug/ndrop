@@ -26,6 +26,11 @@
 # https://developer.android.com/reference/android/Manifest.permission
 # https://github.com/kivy/python-for-android/blob/master/pythonforandroid/recipes/android/src/android/permissions.py
 
+cat > ../main.py << EOF
+from ndrop.__main_kivy__ import run
+run()
+EOF
+
 p4a apk \
     --private $HOME/ndrop \
     --package "org.network.ndrop" \

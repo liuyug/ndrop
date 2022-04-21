@@ -733,14 +733,15 @@ class GuiApp(App):
 
     def android_back_click(self, window, key, *largs):
         if key == 27:
-            internal = 5
+            internal = 3
             click_time = datetime.datetime.now()
+            Logger.info(f'Ndrop: press back button. click time: {click_time}, last time: {self.last_click_time}')
             if (click_time - self.last_click_time).seconds < internal:
+                Logger.info('Ndrop: request to quit!')
                 return True
             self.last_click_time = click_time
 
     def on_stop(self):
-        Logger.info('Ndrop: request to quit.')
         self.server.quit()
 
     def on_pause(self):
