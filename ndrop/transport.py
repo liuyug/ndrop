@@ -3,6 +3,8 @@ import logging
 import socket
 import ipaddress
 import math
+import platform
+from os import environ
 
 import ifaddr
 
@@ -57,6 +59,26 @@ def get_broadcast_address(ip_addr=None):
             return [], []
 
     return ip_addrs, broadcasts
+
+
+def get_platform_system():
+    system = platform.system().lower()
+    if 'ANDROID_ARGUMENT' in environ:
+        return 'android'
+    elif system in ('win32', 'cygwin'):
+        return 'windows'
+    elif system == 'darwin':
+        return 'macosx'
+    elif system.startswith('linux'):
+        return 'linux'
+    elif system.startswith('freebsd'):
+        return 'linux'
+    return system
+
+
+def get_platform_name():
+    node = platform.node()
+    return node
 
 
 class Transport(object):

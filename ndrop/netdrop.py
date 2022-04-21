@@ -68,6 +68,14 @@ class NetDropServer(NetDrop):
             logger.info('Quit: %s' % transport)
             transport.quit_request()
 
+    def check_drop_directory(self):
+        if os.access(self._drop_directory, os.W_OK):
+            self._read_only = False
+            logger.warn('Maybe to WRITE: %s' % self._drop_directory)
+        else:
+            self._read_only = True
+            logger.warn('No permission to WRITE: %s' % self._drop_directory)
+
     def saved_to(self, path):
         if path == '-':
             self._drop_directory = '-'
@@ -78,9 +86,7 @@ class NetDropServer(NetDrop):
             logger.error('File exists: %s !!!' % path)
             return
         self._drop_directory = os.path.abspath(path)
-        if not os.access(self._drop_directory, os.W_OK):
-            self._read_only = True
-            logger.warn('No permission to WRITE: %s' % self._drop_directory)
+        self.check_drop_directory()
 
     def recv_feed_file(self,
                        path, data,

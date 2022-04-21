@@ -8,11 +8,12 @@ import socket
 import socketserver
 import struct
 import ssl
-import platform
 import uuid
 import json
 
-from .transport import Transport, get_broadcast_address, CHUNK_SIZE, set_chunk_size
+from .transport import Transport, \
+    get_broadcast_address, CHUNK_SIZE, set_chunk_size, \
+    get_platform_name, get_platform_system
 from .about import get_system_symbol
 
 
@@ -345,11 +346,10 @@ class NitroshareServer(Transport):
             self._udp_port = int(addr.pop(0))
 
         self._packet = Packet()
-        uname = platform.uname()
         data = {}
         data['uuid'] = '%s' % uuid.uuid1()
-        data['name'] = uname.node
-        data['operating_system'] = uname.system.lower()
+        data['name'] = get_platform_name()
+        data['operating_system'] = get_platform_system()
         data['port'] = '%s' % self._tcp_port
         data['uses_tls'] = bool(self._cert) and bool(self._key)
         self._node = data
@@ -519,11 +519,10 @@ class NitroshareClient(Transport):
             ssl_context.verify_mode = ssl.CERT_NONE
             sock = ssl_context.wrap_socket(sock, server_side=False)
 
-        uname = platform.uname()
         sock.settimeout(self._timeout)
         err = 'done'
         try:
-            header = self._packet.pack_files_header(uname.node, total_size, len(files))
+            header = self._packet.pack_files_header(get_platform_name(), total_size, len(files))
             sock.connect(self._address)
             sock.sendall(header)
 

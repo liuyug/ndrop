@@ -7,9 +7,10 @@ import socket
 import socketserver
 import ssl
 import getpass
-import platform
 
-from .transport import Transport, get_broadcast_address, CHUNK_SIZE, set_chunk_size
+from .transport import Transport, \
+    get_broadcast_address, CHUNK_SIZE, set_chunk_size, \
+    get_platform_name, get_platform_system
 from .about import get_system_symbol
 
 
@@ -456,12 +457,11 @@ class DuktoServer(Transport):
 
     def create_node(self):
         user = getpass.getuser()
-        uname = platform.uname()
         node = {
             'port': self._tcp_port,
             'user': user,
-            'name': uname.node,
-            'operating_system': uname.system,
+            'name': get_platform_name(),
+            'operating_system': get_platform_system(),
         }
         return node
 

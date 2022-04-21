@@ -5,7 +5,7 @@ import os.path
 import sys
 import argparse
 import logging
-import platform
+import datetime
 import ipaddress
 import threading
 import queue
@@ -16,7 +16,8 @@ from . import init_config, save_config, gConfig
 from . import about
 from . import hfs
 from .netdrop import NetDropServer, NetDropClient
-from .transport import get_broadcast_address, human_size
+from .transport import get_broadcast_address, human_size, \
+    get_platform_name, get_platform_system
 
 from .image import NdropImage
 
@@ -66,7 +67,7 @@ class GUIProgressBar(ProgressBar):
         Clock.schedule_once(self.update_bar)
 
     def write(self, message, file=None):
-        logger.info(message)
+        logger.debug(message)
 
     def close(self):
         if not self.speed:
@@ -87,7 +88,6 @@ class GUINetDropServer(NetDropServer):
         pb.max = self.max_value
 
     def init_bar(self, max_value):
-        App.get_running_app().ask_runtime_permission('WRITE_EXTERNAL_STORAGE')
         pb = self.parent.root.ids.you.progress
         self.max_value = max_value
         Clock.schedule_once(self.init_widget)
@@ -361,11 +361,11 @@ class RootWidget(BoxLayout):
     def add_client(self, dt, node):
         client = ClientWidget(node)
         self.ids.scroll_layout.add_widget(client)
-        Logger.info(f'{about.name}: add {client}')
+        Logger.info(f'Ndrop: add {client}')
 
     def remove_client(self, dt, client):
         self.ids.scroll_layout.remove_widget(client)
-        Logger.info(f'{about.name}: remove {client}')
+        Logger.info(f'Ndrop: remove {client}')
 
     def recv_text(self, dt, text):
         self.messagebox.append_text(text)
@@ -428,14 +428,13 @@ class RootWidget(BoxLayout):
                     'node': recv_node,
                 })
             message = f'{ip}: {text}'
-            Logger.info(f'{about.name} TEXT: {message}')
+            Logger.debug(f'Ndrop: TEXT: {message}')
             Clock.schedule_once(partial(self.recv_text, text=message))
             return True
 
     def open_folder(self):
         App.get_running_app().open_settings()
         return
-        App.get_running_app().ask_runtime_permission('READ_EXTERNAL_STORAGE')
         file_url = 'file://%s' % gConfig.app['target_dir']
         webbrowser.open(file_url)
 
@@ -496,7 +495,6 @@ class FileChooserWidget(FloatLayout):
 
     @staticmethod
     def ask_files(path=None, rootpath=None, callback=None):
-        App.get_running_app().ask_runtime_permission('READ_EXTERNAL_STORAGE')
         # 当选择多个文件时，List视图不能显示选中的文件
         content = FileChooserWidget(path=path, rootpath=rootpath)
         popup = Popup(
@@ -537,7 +535,7 @@ class ConfigWidget(BoxLayout):
         gConfig.app['target_dir'] = self.ids.target_dir.text
         gConfig.app['create_node_by_text'] = self.ids.create_node_by_text.active
         save_config()
-        Logger.info(f'Ndrop: Write config: {gConfig.config_path}')
+        Logger.debug(f'Ndrop: Write config: {gConfig.config_path}')
         app = App.get_running_app()
         app.server.saved_to(gConfig.app['target_dir'])
         self.dismiss()
@@ -635,12 +633,14 @@ class GuiApp(App):
         self.icon = os.path.join(self.image_dir, 'ndrop.png')
         self.load_kv(os.path.join(kv_dir, '__main_kivy__.kv'))
 
-        uname = platform.uname()
         ipaddrs, _ = get_broadcast_address()
         host_node = {}
         host_node['user'] = 'You'
-        host_node['name'] = uname.node
-        host_node['operating_system'] = uname.system
+        host_node['name'] = get_platform_name()
+        if kivy_platform == 'linux':
+            host_node['operating_system'] = kivy_platform
+        else:
+            host_node['operating_system'] = get_platform_system()
         host_node['mode'] = '?'
         host_node['ip'] = ', '.join(ipaddrs)
         host_node['type'] = 'host'
@@ -662,15 +662,20 @@ class GuiApp(App):
         self.start_ndrop_server()
         Window.bind(on_drop_file=self.root.on_drop_file)
         Window.bind(on_drop_text=self.root.on_drop_text)
+        if kivy_platform == 'android':
+            self.last_click_time = datetime.datetime.now()
+            Window.bind(on_keyboard=self.android_back_click)
         Clock.schedule_once(self.fix_android_splash)
         return self.root
 
     def init_config(self):
         if kivy_platform == 'android':
+            self.ask_storage_permission(callback=self.check_target_dir)
             try:
-                from android.storage import app_storage_path, primary_external_storage_path
-                Logger.info(f'Ndrop: app_storage_path: {app_storage_path()}')
-                Logger.info(f'Ndrop: primary_external_storage_path: {primary_external_storage_path()}')
+                from android.storage import app_storage_path, primary_external_storage_path, secondary_external_storage_path
+                Logger.debug(f'Ndrop: app_storage_path: {app_storage_path()}')
+                Logger.debug(f'Ndrop: primary_external_storage_path: {primary_external_storage_path()}')
+                Logger.debug(f'Ndrop: secondary_external_storage_path: {secondary_external_storage_path()}')
                 cfg_path = os.path.join(app_storage_path(), 'ndrop.ini')
                 target_dir = os.path.join(primary_external_storage_path(), 'Download')
                 init_config(cfg_path, target_dir)
@@ -679,9 +684,6 @@ class GuiApp(App):
                 Window.fullscreen = 'auto'
             except ImportError:
                 Logger.warn('Kivy: not found "android" packge')
-
-            Config.set('graphics', 'fullscreen', 'auto')
-            Config.set('graphics', 'window_state', 'maximized')
         else:
             init_config()
             Window.fullscreen = False
@@ -689,9 +691,10 @@ class GuiApp(App):
             Window.size = (320, 360)
 
         # Kivy config
-        Logger.info(f'Kivy: Platform: {kivy_platform}')
-        Logger.info(f'Kivy: Config file: {Config.filename}')
-        Logger.info(f'Kivy: user_data_dir: {self.user_data_dir}')
+        Logger.debug(f'Kivy: Platform: {kivy_platform}')
+        Logger.debug(f'Kivy: Config file: {Config.filename}')
+        Logger.debug(f'Kivy: user_data_dir: {self.user_data_dir}')
+        Logger.info(f'Ndrop: Platform: {get_platform_system()}')
         Logger.info(f'Ndrop: Config file: {gConfig.config_path}')
         Logger.info(f'Ndrop: Target dir: {gConfig.app["target_dir"]}')
 
@@ -728,6 +731,14 @@ class GuiApp(App):
 
         Config.write()
 
+    def android_back_click(self, window, key, *largs):
+        if key == 27:
+            internal = 5
+            click_time = datetime.datetime.now()
+            if (click_time - self.last_click_time).seconds < internal:
+                return True
+            self.last_click_time = click_time
+
     def on_stop(self):
         Logger.info('Ndrop: request to quit.')
         self.server.quit()
@@ -754,6 +765,9 @@ class GuiApp(App):
             'from_addr': from_addr
         })
 
+    def check_target_dir(self, flag):
+        self.server.check_drop_directory()
+
     def start_ndrop_server(self):
         listen = '0.0.0.0'
         mode = None
@@ -772,16 +786,19 @@ class GuiApp(App):
         if kivy_platform != 'android':
             return
         try:
-            from android import remove_presplash
-            print('remove splash')
-            remove_presplash()
+            Logger.debug('Ndrop: Remove splash screen')
+            if True:
+                from android import loadingscreen
+                loadingscreen.hide_loading_screen()
+            else:
+                from android import remove_presplash
+                remove_presplash()
         except ImportError:
-            Logger.warning(
-                'Base: Failed to import "android" module. '
-                'Could not remove android presplash.')
+            Logger.warn('Ndrop: Could not find "android" module!')
 
-    def ask_runtime_permission(self, permission):
+    def ask_storage_permission(self, callback=None):
         """
+        https://developer.android.com/training/data-storage
         WRITE_EXTERNAL_STORAGE
         READ_EXTERNAL_STORAGE,
         MANAGE_EXTERNAL_STORAGE,
@@ -789,20 +806,39 @@ class GuiApp(App):
         ACCESS_NETWORK_STATE,
         ACCESS_WIFI_STATE,
         """
+        def permission_callback(permissions, grant_results):
+            grant_flag = True
+            for x in range(len(permissions)):
+                Logger.debug(f'Ndrop: Permission: {permissions[x]}: {grant_results[x]}')
+                if not grant_results[x]:
+                    grant_flag = False
+            if callback:
+                callback(grant_flag)
+
         if kivy_platform != 'android':
             return
         try:
             from android.permissions import check_permission, request_permissions, Permission
-            android_permission = getattr(Permission, permission)
-            if not check_permission(android_permission):
-                request_permissions([android_permission])
-                if not check_permission(android_permission):
-                    Logger.warn(f'Permission: Failed to request {permission}')
+            storage_permissions = [
+                Permission.WRITE_EXTERNAL_STORAGE,
+                Permission.READ_EXTERNAL_STORAGE,
+            ]
+            no_permission = False
+            for perm in storage_permissions:
+                if not check_permission(perm):
+                    no_permission = True
+                    break
+            if no_permission:
+                Logger.debug(f'Permission: Request permissions: {storage_permissions}')
+                request_permissions(storage_permissions, permission_callback)
+            else:
+                Logger.debug(f'Permission: Has permissions: {storage_permissions}')
         except ImportError:
-            pass
+            Logger.warn('Ndrop: Could not find "android" module!')
 
 
 def run():
+    Logger.setLevel(logging.DEBUG)
     Logger.info(f'Ndrop: {about.banner}')
     app_logger = logging.getLogger(__name__.rpartition('.')[0])
     app_logger.setLevel(logging.INFO)
