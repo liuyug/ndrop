@@ -102,7 +102,11 @@ class GUIProgressBar(ProgressBar):
         if not self.speed:
             # transfer complete less than a second
             self.count[self.time_index] = self.step_count
-            speed = sum(self.count) / (len([x for x in self.count if x != 0]) * self.interval / 1000)
+            elapse_time = len([x for x in self.count if x != 0]) * self.interval / 1000
+            if elapse_time > 0:
+                speed = sum(self.count) / elapse_time
+            else:
+                speed = 0
             self.speed = f'{human_size(speed):>9}/s'
         self.step_count = 0
         self.update(0)
@@ -238,7 +242,7 @@ class SendWidget(BoxLayout):
         elif self.ids.nitroshare.active:
             mode = 'Nitroshare'
         else:
-            raise ValueError()
+            mode = 'Dukto'
         text = self.ids.message.text
         self.do_send_text(text, ip, mode)
         self.dismiss()
@@ -314,7 +318,10 @@ class ClientWidget(ButtonBehavior, BoxLayout):
         ).start()
 
     def update_message(self, dt, err):
-        self.message = '%s - %s' % (self.node['ip'], err)
+        if self.node['ip'] == '?':
+            self.message = str(err)
+        else:
+            self.message = '%s - %s' % (self.node['ip'], err)
 
     def send_finish(self, err):
         """被GUINetDropClient调用，通知本次发送任务完成"""

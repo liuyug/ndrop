@@ -511,10 +511,10 @@ class DuktoClient(Transport):
         except KeyboardInterrupt:
             pass
         except socket.timeout as e:
-            err = e
+            err = f'Failed to send TEXT: {e}'
             logger.error(err)
         except Exception as e:
-            err = e
+            err = f'Failed to send TEXT: {e}'
             logger.error(err)
         sock.close()
         self.send_finish(err)
@@ -537,10 +537,10 @@ class DuktoClient(Transport):
         except KeyboardInterrupt:
             pass
         except socket.timeout as e:
-            err = e
+            err = f'Failed to send Files: {e}'
             logger.error(err)
         except Exception as e:
-            err = e
+            err = f'Failed to send Files: {e}'
             logger.error(err)
             raise
         sock.close()
