@@ -30,29 +30,45 @@ from kivy.utils import platform as kivy_platform
 
 def init_kivy_config():
     default_font = Config.get('kivy', 'default_font').strip()
-    Logger.info(f'Ndrop: Font: {default_font}')
-
+    Logger.info(f'Ndrop: Default font: {default_font}')
+    cjk_fonts = [
+        'NotoSansCJK-Regular.ttc',
+        'DroidSansFallbackFull.ttf',
+        'msyh.ttc',
+    ]
     if kivy_platform == 'android':
-        cjk_font = 'NotoSansCJK-Regular.ttc'
         resource_add_path(r'/system/fonts')
     elif kivy_platform == 'win':
-        cjk_font = 'msyh.ttc'
         resource_add_path(r'C:\Windows\Fonts')
     elif kivy_platform == 'linux':
         resource_add_path(r'/usr/share/fonts/truetype/droid')
-        cjk_font = 'DroidSansFallbackFull.ttf'
-    else:
-        cjk_font = None
-
-    if cjk_font:
+    for cjk_font in cjk_fonts:
         cjk_font_path = resource_find(cjk_font)
+        if cjk_font_path:
+            break
+    if cjk_font_path:
         # Kivy font: ['Roboto', 'data/fonts/Roboto-Regular.ttf', 'data/fonts/Roboto-Italic.ttf', 'data/fonts/Roboto-Bold.ttf', 'data/fonts/Roboto-BoldItalic.ttf']
         # kivy/core/text/__init__.py register(name, fn_regular, fn_italic=None, fn_bold=None, fn_bolditalic=None):
-        if cjk_font_path:
-            fonts = [f.strip("' ") for f in default_font.strip('[]').split(',')]
-            fonts[1] = cjk_font_path
-            Config.set('kivy', 'default_font', str(fonts))
-            Logger.info(f'Ndrop: Fix Font: {fonts}')
+        fonts = [f.strip("' ") for f in default_font.strip('[]').split(',')]
+        fonts[1] = cjk_font_path
+        Config.set('kivy', 'default_font', str(fonts))
+        Logger.info(f'Ndrop: Fix Font: {fonts}')
+    # else:
+    #     c_j_k_fonts = [
+    #         'NotoSansSC-Regular.otf',
+    #         'NotoSansTC-Regular.otf',
+    #         'NotoSansKR-Regular.otf',
+    #         'NotoSansJP-Regular.otf',
+    #     ]
+    #     for cjk_font in c_j_k_fonts:
+    #         cjk_font_path = resource_find(cjk_font)
+    #         if cjk_font_path:
+    #             break
+    #     if cjk_font_path:
+    #         fonts = [f.strip("' ") for f in default_font.strip('[]').split(',')]
+    #         fonts[-1] = cjk_font_path
+    #         Config.set('kivy', 'default_font', str(fonts))
+    #         Logger.info(f'Ndrop: Fix Font: {fonts}')
 
 
 init_kivy_config()
@@ -469,11 +485,48 @@ class RootWidget(BoxLayout):
             Clock.schedule_once(partial(self.recv_text, text=message))
             return True
 
+    def android_open_folder(self, target_dir):
+        from jnius import cast
+        from jnius import autoclass
+        # for Pygame
+        # PythonActivity = autoclass('org.renpy.android.PythonActivity')
+        # for SDL2
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        Intent = autoclass('android.content.Intent')
+        Uri = autoclass('android.net.Uri')
+
+        intent = Intent()
+
+        intent = Intent(Intent.ACTION_GET_CONTENT)
+        intent.setData(Uri.parse(target_dir))
+        intent.setType('*/*')
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        PICKFILE_RESULT_CODE = 1
+        currentActivity = cast('android.app.Activity', PythonActivity.mActivity)
+        currentActivity.startActivityForResult(intent, PICKFILE_RESULT_CODE)
+        # currentActivity.startActivity(intent)
+
+        # open url
+        # intent = Intent(Intent.ACTION_VIEW)
+        # intent.setData(Uri.parse('https://192.168.100.10/dict/'))
+        # currentActivity = cast('android.app.Activity', PythonActivity.mActivity)
+        # currentActivity.startActivity(intent)
+
+        # choose file
+        # intent = Intent(Intent.ACTION_GET_CONTENT)
+        # intent.setType('*/*')
+        # intent.addCategory(Intent.CATEGORY_OPENABLE)
+        # intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        # currentActivity = cast('android.app.Activity', PythonActivity.mActivity)
+        # currentActivity.startActivity(intent)
+
     def open_folder(self):
-        App.get_running_app().open_settings()
-        return
-        file_url = 'file://%s' % gConfig.app['target_dir']
-        webbrowser.open(file_url)
+        if kivy_platform == 'android':
+            self.android_open_folder(gConfig.app['target_dir'])
+        else:
+            file_url = 'file://%s' % gConfig.app['target_dir']
+            webbrowser.open(file_url)
 
     def show_config(self):
         if not self.popup_config:
