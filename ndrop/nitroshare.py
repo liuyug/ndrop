@@ -401,7 +401,8 @@ class NitroshareServer(Transport):
 
     def quit_request(self):
         self._loop_hello = False
-        self._udp_server.shutdown()
+        # too slow to shutdown socket
+        # self._udp_server.shutdown()
 
     def fileno(self):
         return self._tcp_server.fileno()

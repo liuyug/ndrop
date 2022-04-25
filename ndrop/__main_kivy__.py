@@ -25,6 +25,8 @@ from kivy.config import Config
 from kivy.resources import resource_add_path, resource_find
 from kivy.logger import Logger
 from kivy.utils import platform as kivy_platform
+from kivymd.font_definitions import fonts as kivymd_fonts
+from kivy.core.text import LabelBase as kivymd_LabelBase
 # Config.set should be used before importing any other Kivy modules to apply these settings
 
 
@@ -49,39 +51,30 @@ def init_kivy_config():
     if cjk_font_path:
         # Kivy font: ['Roboto', 'data/fonts/Roboto-Regular.ttf', 'data/fonts/Roboto-Italic.ttf', 'data/fonts/Roboto-Bold.ttf', 'data/fonts/Roboto-BoldItalic.ttf']
         # kivy/core/text/__init__.py register(name, fn_regular, fn_italic=None, fn_bold=None, fn_bolditalic=None):
+        # for kivy
         fonts = [f.strip("' ") for f in default_font.strip('[]').split(',')]
         fonts[1] = cjk_font_path
         Config.set('kivy', 'default_font', str(fonts))
         Logger.info(f'Ndrop: Fix Font: {fonts}')
-    # else:
-    #     c_j_k_fonts = [
-    #         'NotoSansSC-Regular.otf',
-    #         'NotoSansTC-Regular.otf',
-    #         'NotoSansKR-Regular.otf',
-    #         'NotoSansJP-Regular.otf',
-    #     ]
-    #     for cjk_font in c_j_k_fonts:
-    #         cjk_font_path = resource_find(cjk_font)
-    #         if cjk_font_path:
-    #             break
-    #     if cjk_font_path:
-    #         fonts = [f.strip("' ") for f in default_font.strip('[]').split(',')]
-    #         fonts[-1] = cjk_font_path
-    #         Config.set('kivy', 'default_font', str(fonts))
-    #         Logger.info(f'Ndrop: Fix Font: {fonts}')
+        # for kivymd
+        kivymd_fonts[0]['fn_regular'] = cjk_font_path
+        for font in kivymd_fonts:
+            kivymd_LabelBase.register(**font)
 
 
 init_kivy_config()
-from kivy.app import App
+from kivymd.app import MDApp
 from kivy.clock import Clock
 from kivy.core.window import Window
 from kivy.uix.behaviors.button import ButtonBehavior
 from kivy.uix.popup import Popup
-from kivy.uix.progressbar import ProgressBar
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.button import Button
-from kivy.uix.label import Label
+from kivymd.uix.progressbar import MDProgressBar
+from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.floatlayout import MDFloatLayout
+from kivymd.uix.filemanager import MDFileManager
+from kivymd.uix.button import MDIconButton
+from kivymd.uix.label import MDLabel
+from kivymd.uix.snackbar import Snackbar
 from kivy.uix.image import Image
 from kivy.graphics import Color, Rectangle
 from kivy.core.image import Image as CoreImage
@@ -92,7 +85,7 @@ from kivy.properties import StringProperty, ObjectProperty
 logger = logging.getLogger(__name__)
 
 
-class GUIProgressBar(ProgressBar):
+class GUIProgressBar(MDProgressBar):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.interval = 100
@@ -190,12 +183,7 @@ class GUINetDropClient(NetDropClient):
         super().send_finish(err)
 
 
-class ButtonLabel(ButtonBehavior, Label):
-    def __repr__(self):
-        return '<ButtonLabel>'
-
-
-class SendWidget(BoxLayout):
+class SendWidget(MDBoxLayout):
     dismiss = ObjectProperty(None)
 
     def __init__(self, ip=None, mode=None, **kwargs):
@@ -224,27 +212,25 @@ class SendWidget(BoxLayout):
         else:
             self.ids.message.focus = True
 
-    def on_input_text(self, widget):
-        if widget.text:
-            if self.ids.dukto.active:
-                self.ids.send_text.disabled = False
-            self.ids.send_files.disabled = False
-        else:
-            self.ids.send_text.disabled = True
-            self.ids.send_files.disabled = True
+    def on_input_text(self, widget, id_):
+        if id_ == 'ip':
+            if widget.text:
+                if self.ids.dukto.active:
+                    self.ids.send_text.disabled = False
+                self.ids.send_files.disabled = False
+            else:
+                self.ids.send_text.disabled = True
+                self.ids.send_files.disabled = True
+        elif id_ == 'message':
+            pass
 
-    def on_checkbox_press(self, widget, *args):
-        if widget.active:
-            return
-        widget.active = True
-
-    def on_checkbox_active(self, widget, *args):
+    def on_checkbox_active(self, widget, id_):
         if not widget.active:
             return
-        if widget.text == 'nitroshare':
+        if id_ == 'nitroshare':
             self.ids.send_text.disabled = True
             self.ids.message.disabled = True
-        if widget.text == 'dukto':
+        if id_ == 'dukto':
             if self.ids.ip.text:
                 self.ids.send_text.disabled = False
             self.ids.message.disabled = False
@@ -263,15 +249,14 @@ class SendWidget(BoxLayout):
         self.do_send_text(text, ip, mode)
         self.dismiss()
 
-    def on_get_files(self, path, files):
-        for f in files:
-            f = os.path.join(path, f)
+    def on_get_files(self, files):
         self.on_send_files2(files)
 
     def on_send_files(self):
         FileChooserWidget.ask_files(
             path=gConfig.app['target_dir'],
             rootpath=gConfig.app.get('android_rootpath'),
+            selector='multi',
             callback=self.on_get_files,
         )
 
@@ -284,12 +269,12 @@ class SendWidget(BoxLayout):
         elif self.ids.nitroshare.active:
             mode = 'Nitroshare'
         else:
-            raise ValueError()
+            mode = 'Dukto'
         self.do_send_files(files, ip, mode)
         self.dismiss()
 
 
-class ClientWidget(ButtonBehavior, BoxLayout):
+class ClientWidget(ButtonBehavior, MDBoxLayout):
     progress = None
     popup_sendmessage = None
     node = ObjectProperty(None)
@@ -306,7 +291,9 @@ class ClientWidget(ButtonBehavior, BoxLayout):
             return '<ClientWidget: NULL>'
 
     def on_image_name(self, instance, name):
-        bio = NdropImage.get_os_pngio(name)
+        app = MDApp.get_running_app()
+        background = app.theme_cls.primary_color
+        bio = NdropImage.get_os_pngio(name, background=background)
         self.texture = CoreImage(bio, ext='png').texture
 
     def on_node(self, instance, node):
@@ -332,6 +319,7 @@ class ClientWidget(ButtonBehavior, BoxLayout):
             target=agent.send_files,
             args=(files, ),
         ).start()
+        Clock.schedule_once(partial(self.update_message, err='transfer...'))
 
     def update_message(self, dt, err):
         if self.node['ip'] == '?':
@@ -380,7 +368,7 @@ class ClientWidget(ButtonBehavior, BoxLayout):
         self.popup_sendmessage.open()
 
 
-class RootWidget(BoxLayout):
+class RootWidget(MDBoxLayout):
     messagebox = None
     popup_hfs = None
     popup_messagebox = None
@@ -392,7 +380,7 @@ class RootWidget(BoxLayout):
 
     def init_widget(self, *args):
         self.messagebox = MessageWidget()
-        app = App.get_running_app()
+        app = MDApp.get_running_app()
         self.ids.you.node = app.host_node
         self.ids.ip.node = app.ip_node
 
@@ -545,7 +533,7 @@ class RootWidget(BoxLayout):
         if not self.popup_hfs:
             content = HFSWidget()
             self.popup_hfs = Popup(
-                title="HFS",
+                title="HFS - HTTP File Server",
                 title_color=(0, 0, 0, 1),
                 content=content,
                 auto_dismiss=False,
@@ -555,7 +543,7 @@ class RootWidget(BoxLayout):
         self.popup_hfs.open()
 
 
-class CheckLabelBox(BoxLayout):
+class CheckLabelBox(MDBoxLayout):
     def on_checkbox_active(self, cb):
         self.active = cb.active
 
@@ -563,44 +551,47 @@ class CheckLabelBox(BoxLayout):
         cb.active = not cb.active
 
 
-class FileChooserWidget(FloatLayout):
+# class FileChooserWidget(MDBoxLayout):
+class FileChooserWidget(MDFileManager):
+    rootpath = None
     callback = None
-    select = ObjectProperty(None)
-    cancel = ObjectProperty(None)
 
-    def __init__(self, path=None, rootpath=None, **kwargs):
+    # def __init__(self, selector='any', callback=None, **kwargs):
+    def __init__(self, callback=None, **kwargs):
         super().__init__(**kwargs)
-        self.path = path
-        self.rootpath = rootpath
+        self.callback = callback
 
-    def update_file_list_entry(self, file_chooser, file_list_entry, *args):
-        for layout in file_list_entry.children:
-            for label in layout.children:
-                label.color = (0, 0, 0, 1)
-
-    def select(self, path, files):
+    def select_path(self, path):
+        self.exit_manager()
         if self.callback:
-            self.callback(path, files)
-        self.popup.dismiss()
+            self.callback(path)
+
+    def exit_manager(self, *args):
+        self.close()
+
+    def select_directory_on_press_button(self, *args):
+        if self.selector == "multi" and len(self.selection) == 0:
+            self.select_path([self.current_path])
+        else:
+            super().select_directory_on_press_button(*args)
+
+    def events(self, instance, keyboard, keycode, text, modifiers):
+        '''Called when buttons are pressed on the mobile device.'''
+        if keyboard in (1001, 27):
+            if self._window_manager_open:
+                self.back()
+        return True
 
     @staticmethod
-    def ask_files(path=None, rootpath=None, callback=None):
-        # 当选择多个文件时，List视图不能显示选中的文件
-        content = FileChooserWidget(path=path, rootpath=rootpath)
-        popup = Popup(
-            title="Select folder",
-            title_color=(0, 0, 0, 1),
-            content=content,
-            auto_dismiss=False,
-            background='',
+    def ask_files(path=None, rootpath=None, selector='any', callback=None):
+        fc = FileChooserWidget(
+            selector=selector,
+            callback=callback
         )
-        content.popup = popup
-        content.callback = callback
-        content.cancel = popup.dismiss
-        popup.open()
+        fc.show(path)
 
 
-class ConfigWidget(BoxLayout):
+class ConfigWidget(MDBoxLayout):
     dismiss = ObjectProperty(None)
 
     def __init__(self, **kwargs):
@@ -611,13 +602,14 @@ class ConfigWidget(BoxLayout):
         self.ids.target_dir.text = gConfig.app['target_dir']
         self.ids.create_node_by_text.active = gConfig.app['create_node_by_text']
 
-    def on_get_folder(self, path, files):
+    def on_get_folder(self, path):
         self.ids.target_dir.text = path
 
     def on_change_folder(self):
         FileChooserWidget.ask_files(
             path=gConfig.app['target_dir'],
             rootpath=gConfig.app.get('android_rootpath'),
+            selector='folder',
             callback=self.on_get_folder,
         )
 
@@ -626,7 +618,7 @@ class ConfigWidget(BoxLayout):
         gConfig.app['create_node_by_text'] = self.ids.create_node_by_text.active
         save_config()
         Logger.debug(f'Ndrop: Write config: {gConfig.config_path}')
-        app = App.get_running_app()
+        app = MDApp.get_running_app()
         app.server.saved_to(gConfig.app['target_dir'])
         self.dismiss()
 
@@ -643,7 +635,7 @@ class QueueHandler(logging.Handler):
         self.log_queue.put(record)
 
 
-class MessageWidget(BoxLayout):
+class MessageWidget(MDBoxLayout):
     dismiss = ObjectProperty(None)
 
     def __init__(self, **kwargs):
@@ -659,7 +651,7 @@ class MessageWidget(BoxLayout):
         self.dismiss()
 
 
-class HFSWidget(BoxLayout):
+class HFSWidget(MDBoxLayout):
     dismiss = ObjectProperty(None)
 
     def __init__(self, **kwargs):
@@ -709,13 +701,15 @@ class HFSWidget(BoxLayout):
         self.dismiss()
 
 
-class GuiApp(App):
+class GuiApp(MDApp):
     host_node = None
     ip_node = None
-    last_click_time = None
+    back_counter = 0
 
     def build(self):
         self.title = 'NDrop'
+
+        self.theme_cls.primary_palette = "Green"
 
         kv_dir = os.path.dirname(__file__)
         self.image_dir = os.path.join(kv_dir, 'image')
@@ -777,7 +771,7 @@ class GuiApp(App):
             init_config()
             Window.fullscreen = False
             Window.minimum_width, Window.minimum_height = 320, 360
-            Window.size = (320, 360)
+            Window.size = (320, 480)
 
         # Kivy config
         Logger.debug(f'Kivy: Platform: {kivy_platform}')
@@ -789,13 +783,18 @@ class GuiApp(App):
 
     def hook_key(self, window, key, *args):
         if key in [27]:
-            internal = 1
-            click_time = datetime.datetime.now()
-            if not self.last_click_time or (click_time - self.last_click_time).seconds > internal:
-                Logger.info('Ndrop: double back click to quit!')
-                self.last_click_time = click_time
-                return True
-            Logger.info('Ndrop: request to quit!')
+            if self.back_counter == 1:
+                Logger.info('Ndrop: request to quit!')
+                self.stop()
+            else:
+                Logger.info('Ndrop: Double "Back" to quit!')
+                Snackbar(text='Double "Back" to quit.', duration=1).open()
+                self.back_counter += 1
+                Clock.schedule_once(self.reset_back_counter, 0.5)
+            return True
+
+    def reset_back_counter(self, *args):
+        self.back_counter = 0
 
     def on_stop(self):
         self.server.quit()

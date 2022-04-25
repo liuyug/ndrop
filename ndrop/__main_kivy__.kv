@@ -8,140 +8,82 @@
 #:set default_height '30dp'
 #:set label_font_size '14sp'
 <GUIProgressBar>:
-<ButtonLabel>:
 <CheckLabelBox>:
     active: True
     text: 'checkbox'
-    CheckBox:
+    spacing: sp(5)
+    MDCheckbox:
         id: cb
         active: root.active
         size_hint: None, 1
         width: '20dp'
-        halign: 'left'
         on_active: root.on_checkbox_active(cb)
-    ButtonLabel:
+    MDTextButton:
         text: root.text
-        color: 0, 0, 0, 1
-        text_size: self.size
-        size: self.texture_size
-        padding_x: 5
-        halign: 'left'
-        valign: 'middle'
-        on_press: root.on_label_click(cb)
-<FileChooserWidget>:
-    path: ''
-    rootpath: None
-    BoxLayout:
-        size: root.size
-        pos: root.pos
-        orientation: "vertical"
-        FileChooserListView:
-            id: filechooser
-            show_hidden: False
-            multiselect: True
-            path: root.path
-            rootpath: root.rootpath
-            on_entry_added: root.update_file_list_entry(*args)
-            on_subentry_to_entry: root.update_file_list_entry(*args)
-        BoxLayout:
-            size_hint_y: None
-            height: default_height
-            BoxLayout:
-            Button:
-                text: "Cancel"
-                on_release: root.cancel()
-            Button:
-                text: "Select"
-                on_release: root.select(filechooser.path, filechooser.selection)
-            BoxLayout:
+        pos_hint: {'center_x':.5, 'center_y': .5}
+        on_press: cb._do_press()
 <SendWidget>:
     orientation: "vertical"
-    padding: sp(5)
+    padding: sp(5), sp(5)
     spacing: sp(5)
-    BoxLayout:
-        size_hint: 1, None
-        height: default_height
+    MDTextField:
+        id: ip
+        hint_text: "IP"
+        on_text: root.on_input_text(self, 'ip')
+    MDBoxLayout:
         spacing: sp(5)
-        Label:
-            text: 'IP:'
-            color: 0, 0, 0, 1
-            size_hint: None, None
-            size: sp(20), default_height
-            halign: 'left'
-            valign: 'middle'
-        TextInput:
-            id: ip
-            size_hint: 1, 1
-            on_text: root.on_input_text(ip)
-    BoxLayout:
-        size_hint: 1, None
+        size_hint_y: None
         height: default_height
-        spacing: sp(5)
-        Label:
+        MDLabel:
             text: 'Mode:'
-            color: 0, 0, 0, 1
-            size_hint: None, None
-            size: sp(50), default_height
-            halign: 'left'
-            valign: 'middle'
-        CheckBox:
+            size_hint_x: None
+            width: sp(50)
+        MDCheckbox:
             id: dukto
             text: 'dukto'
             active: True
             group: 'mode'
-            size_hint: None, None
-            size: sp(20), default_height
-            on_active: root.on_checkbox_active(self)
-        ButtonLabel:
+            size_hint_x: None
+            width: sp(20)
+            on_active: root.on_checkbox_active(self, 'dukto')
+        MDTextButton:
             text: 'Dukto'
-            color: 0, 0, 0, 1
-            text_size: self.size
-            size: self.texture_size
-            halign: 'left'
-            valign: 'middle'
-            on_press: root.on_checkbox_press(dukto)
-        CheckBox:
+            pos_hint: {'center_x':.5, 'center_y': .5}
+            on_press: dukto._do_press()
+        MDCheckbox:
             id: nitroshare
             text: 'nitroshare'
             group: 'mode'
-            size_hint: None, None
-            size: sp(20), default_height
-            on_active: root.on_checkbox_active(self)
-        ButtonLabel:
+            size_hint_x: None
+            width: sp(20)
+            on_active: root.on_checkbox_active(self, 'nitroshare')
+        MDTextButton:
             text: 'NitroShare'
-            color: 0, 0, 0, 1
-            text_size: self.size
-            size: self.texture_size
-            halign: 'left'
-            valign: 'middle'
-            on_press: root.on_checkbox_press(nitroshare)
-    TextInput:
+            pos_hint: {'center_x':.5, 'center_y': .5}
+            on_press: nitroshare._do_press()
+    MDTextField:
         id: message
-    Button:
+        multiline: True
+        hint_text: "Message"
+        size_hint: 1, 1
+        on_text: root.on_input_text(self, 'message')
+    MDRectangleFlatButton:
         id: send_text
-        size_hint: 1, None
-        height: default_height
         text: 'Send TEXT'
+        size_hint_x: 1
         on_press: root.on_send_text()
-    Button:
+    MDRectangleFlatButton:
         id: send_files
-        size_hint: 1, None
-        height: default_height
+        size_hint_x: 1
         text: 'Send Files'
         on_press: root.on_send_files()
-    Button:
-        size_hint: 1, None
-        height: default_height
+    MDRectangleFlatButton:
+        size_hint_x: 1
         text: 'Cancel'
         on_press: root.dismiss()
 <ClientWidget>:
-    canvas.before:
-        Color:
-            rgba: 1, 1, 1, 1
-        Rectangle:
-            pos: self.pos
-            size: self.size
-    size_hint: 1, None
+    md_bg_color: 1, 1, 1, 1
+    size_hint_y: None
     height: sp(72)
     padding: sp(4)
     texture: None
@@ -156,49 +98,33 @@
         size_hint: None, None
         size: sp(64), sp(64)
         pos_hint: {'center_x':.5, 'center_y': .5}
-    BoxLayout:
+    MDBoxLayout:
         orientation: 'vertical'
         padding: sp(5), sp(2)
-        Label:
-            color: 0, 0, 0
+        MDLabel:
             font_size: label_font_size
             text: root.user
-            text_size: self.size
-            size: self.texture_size
             shorten: True
-            halign: 'left'
-            valign: 'middle'
-        Label:
-            color: 0, 0, 0
+        MDLabel:
             font_size: label_font_size
             text: root.name
-            text_size: self.size
-            size: self.texture_size
             shorten: True
-            halign: 'left'
-            valign: 'middle'
-        Label:
-            color: 0, 0, 0
+        MDLabel:
             font_size: label_font_size
             text: root.message
-            text_size: self.size
-            size: self.texture_size
             shorten: True
-            halign: 'left'
-            valign: 'middle'
         GUIProgressBar:
             id: progress
 <RootWidget>:
-    canvas.before:
-        Color:
-            rgba: 0.8, 0.8, 0.8, 1
-        Rectangle:
-            pos: self.pos
-            size: self.size
     orientation: 'vertical'
-    BoxLayout:
+    md_bg_color: 0.9, 0.9, 0.9, 1
+    MDToolbar:
+        title: "NDrop - File Transfer Tool"
+        specific_text_color: 1, 1, 1, 1
+        md_bg_color: app.theme_cls.primary_color
+    MDBoxLayout:
         orientation: 'vertical'
-        size_hint: 1, None
+        size_hint_y: None
         height: self.minimum_height
         padding: sp(5)
         ClientWidget:
@@ -209,102 +135,64 @@
     ScrollView:
         do_scroll_x: False
         do_scroll_y: True
-        BoxLayout:
+        MDBoxLayout:
             id: scroll_layout
             orientation: 'vertical'
             padding: sp(5)
             spacing: sp(5)
-            size_hint: 1, None
+            size_hint_y: None
             height: self.minimum_height
             ClientWidget:
                 id: ip
                 user: 'IP Connection'
                 name: '@send data'
                 message: 'ready'
-            # BoxLayout:
-    BoxLayout:
-        canvas.before:
-            Color:
-                rgb: 0, 0.5, 0
-            Rectangle:
-                pos: self.pos
-                size: self.size
-        size_hint: 1, None
+    MDBoxLayout:
+        md_bg_color: app.theme_cls.primary_dark
+        size_hint_y: None
         height: sp(60)
-        padding: sp(5)
-        BoxLayout:
-        Button:
-            size_hint: None, None
-            size: sp(40), sp(40)
-            pos_hint: {'center_x':.5, 'center_y': .5}
-            background_color: 0, 0.5, 0
-            background_down: ''
-            background_normal: ''
+        MDBoxLayout:
+        MDIconButton:
             id: open_folder
+            icon: join(app.image_dir, 'OpenFolderIcon.png')
+            icon_size: sp(40), sp(40)
+            pos_hint: {'center_x':.5, 'center_y': .5}
             on_press: root.open_folder()
-            Image:
-                allow_stretch: True
-                source: join(app.image_dir, 'OpenFolderIcon.png')
-                size: open_folder.size
-                pos: open_folder.pos
-        BoxLayout:
-        Button:
-            size_hint: None, None
-            size: sp(40), sp(40)
-            pos_hint: {'center_x':.5, 'center_y': .5}
-            background_color: 0, 0.5, 0
-            background_normal: ''
-            background_down: ''
+        MDBoxLayout:
+        MDIconButton:
             id: config
-            on_press: root.show_config()
-            Image:
-                allow_stretch: True
-                source: join(app.image_dir, 'ConfigIcon.png')
-                size: config.size
-                pos: config.pos
-        BoxLayout:
-        Button:
-            size_hint: None, None
-            size: sp(40), sp(40)
+            icon: join(app.image_dir, 'ConfigIcon.png')
+            icon_size: sp(40), sp(40)
             pos_hint: {'center_x':.5, 'center_y': .5}
-            background_color: 0, 0.5, 0
-            background_normal: ''
-            background_down: ''
+            on_press: root.show_config()
+        MDBoxLayout:
+        MDIconButton:
             id: hfs
+            icon: join(app.image_dir, 'hfs.png')
+            icon_size: sp(40), sp(40)
+            pos_hint: {'center_x':.5, 'center_y': .5}
             on_press: root.show_hfs()
-            Image:
-                allow_stretch: True
-                source: join(app.image_dir, 'hfs.png')
-                size: hfs.size
-                pos: hfs.pos
-        BoxLayout:
+        MDBoxLayout:
 <ConfigWidget>:
     orientation: 'vertical'
     padding: sp(5)
     spacing: sp(5)
-    Label:
+    MDLabel:
         text: 'Saved Folder:'
-        color: 0, 0, 0, 1
         size_hint: 1, None
         height: default_height
         font_size: label_font_size
-        text_size: self.size
-        halign: 'left'
-        valign: 'middle'
-    TextInput:
+    MDTextField:
         id: target_dir
-        multiline: False
         size_hint: 1, None
         height: default_height
         font_size: label_font_size
-    BoxLayout:
+    MDBoxLayout:
         size_hint: 1, None
         height: default_height
-        BoxLayout:
-        Button:
+        MDBoxLayout:
+        MDRectangleFlatButton:
             text: 'Change Folder'
-            size_hint: None, None
-            size: sp(150), default_height
             on_press: root.on_change_folder()
     CheckLabelBox:
         id: create_node_by_text
@@ -316,49 +204,46 @@
     BoxLayout:
         size_hint: 1, None
         height: default_height
+        spacing: sp(5)
         BoxLayout:
-        Button:
+        MDRectangleFlatButton:
             text: 'OK'
-            size_hint: None, None
-            size: sp(100), default_height
-            pos_hint: {'center_x':.5, 'center_y': .5}
             on_release: root.on_ok()
-        Button:
+        MDRectangleFlatButton:
             text: 'Cancel'
-            size_hint: None, None
-            size: sp(100), default_height
-            pos_hint: {'center_x':.5, 'center_y': .5}
             on_release: root.on_cancel()
         BoxLayout:
 <MessageWidget>:
     orientation: 'vertical'
     padding: sp(5)
     spacing: sp(5)
-    TextInput:
+    MDTextField:
         id: log
         font_size: '12sp'
+        size_hint: 1, 1
         do_wrap: False
         multiline: True
         readonly: True
-    Button:
+    MDRectangleFlatButton:
         text: 'OK'
-        size_hint: None, None
-        size: sp(100), default_height
+        size_hint_y: None
+        height: default_height
         pos_hint: {'center_x':.5, 'center_y': .5}
         on_release: root.on_ok()
 <HFSWidget>:
     orientation: 'vertical'
     padding: sp(5)
     spacing: sp(5)
-    TextInput:
+    MDTextField:
         id: log
         font_size: '12sp'
-        do_wrap: False
         multiline: True
+        size_hint: 1, 1
+        do_wrap: False
         readonly: True
-    Button:
+    MDRectangleFlatButton:
         text: 'OK'
-        size_hint: None, None
-        size: sp(100), default_height
+        size_hint_y: None
+        height: default_height
         pos_hint: {'center_x':.5, 'center_y': .5}
         on_release: root.on_ok()

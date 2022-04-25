@@ -25,11 +25,21 @@ IMAGES = {
 
 class NdropImage():
     @classmethod
-    def get_os_image(cls, name):
+    def get_os_image(cls, name, background=None):
         image_dir = os.path.join(os.path.dirname(__file__), 'image')
 
         back_path = os.path.join(image_dir, IMAGES['back'])
         back_im = Image.open(back_path)
+        if False and background:
+            # TODO:
+            # 如何改变基本颜色
+            back_im = back_im.convert('RGB')
+            matrix = (
+                background[0], 0, 0, background[0] * 255,
+                0, background[1], 0, background[1] * 255,
+                0, 0, background[2], background[2] * 255,
+            )
+            back_im = back_im.convert("RGB", matrix).convert('RGBA')
 
         fore_path = os.path.join(
             image_dir,
@@ -48,8 +58,8 @@ class NdropImage():
         return ImageTk.PhotoImage(cls.get_os_image(name))
 
     @classmethod
-    def get_os_pngio(cls, name):
-        img = cls.get_os_image(name)
+    def get_os_pngio(cls, name, background=None):
+        img = cls.get_os_image(name, background)
         bio = BytesIO()
         img.save(bio, format='png')
         bio.seek(0)
