@@ -894,13 +894,12 @@ class GuiApp(MDApp):
 
 
 def run():
-    Logger.setLevel(logging.DEBUG)
     Logger.info(f'Ndrop: {about.banner}')
     app_logger = logging.getLogger(__name__.rpartition('.')[0])
     app_logger.setLevel(logging.INFO)
 
     FORMAT = ' * %(message)s'
-    handler = logging.StreamHandler(sys.stderr)
+    handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter(fmt=FORMAT))
     app_logger.addHandler(handler)
 
