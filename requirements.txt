@@ -2,5 +2,5 @@ tqdm
 ifaddr
 pillow
 kivy
+kivymd
 platformdirs
-# plyer

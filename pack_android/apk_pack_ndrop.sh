@@ -61,5 +61,5 @@ p4a apk \
     --blacklist blacklist.txt \
     --release \
     --ignore-setup-py \
-    --requirements=python3,kivy,ifaddr,pillow,tqdm,platformdirs
+    --requirements=python3,kivy,kivymd,ifaddr,pillow,tqdm,platformdirs
     # --blacklist-requirements \
