@@ -86,12 +86,16 @@ class NetDropServer(NetDrop):
             return
         self._drop_directory = os.path.abspath(path)
 
+    def on_recv_file(self, path):
+        pass
+
     def recv_feed_file(self,
                        path, data,
                        recv_size, file_size,
                        total_recv_size, total_size,
                        from_addr):
         if self._bar is None:   # create process bar for every transfer
+            self.on_recv_file(path, from_addr)
             self._bar = self.init_bar(total_size)
         if not self._file_io:  # new file, directory
             # use current platform sep

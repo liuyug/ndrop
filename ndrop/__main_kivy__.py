@@ -147,6 +147,9 @@ class GUINetDropServer(NetDropServer):
         super().remove_node(node)
         self.parent.on_remove_node(node)
 
+    def on_recv_file(self, file, from_addr):
+        self.parent.on_recv_file(file, from_addr)
+
     def recv_finish_text(self, from_addr):
         text = super().recv_finish_text(from_addr)
         self.parent.on_recv_text(text, from_addr)
@@ -310,9 +313,20 @@ class ClientWidget(ButtonBehavior, MDBoxLayout):
         self.image_name = node['operating_system']
         self.progress = self.ids.progress
 
+    def on_recv_file(self, err):
+        Clock.schedule_once(partial(self.update_message, err=err))
+
     def do_send_files(self, files, ip=None, mode=None):
         ip = ip or self.node['ip']
         mode = mode or self.node['mode']
+        if not ip or ip == '?':
+            err = 'Unknown IP Address'
+            Clock.schedule_once(partial(self.update_message, err=err))
+            return
+        if not mode:
+            err = 'Unknown Mode'
+            Clock.schedule_once(partial(self.update_message, err=err))
+            return
         agent = GUINetDropClient(self, ip, mode)
         threading.Thread(
             name='Ndrop client',
@@ -342,6 +356,14 @@ class ClientWidget(ButtonBehavior, MDBoxLayout):
     def do_send_text(self, text, ip=None, mode=None):
         ip = ip or self.node['ip']
         mode = mode or self.node['mode']
+        if not ip or ip == '?':
+            err = 'Unknown IP Address'
+            Clock.schedule_once(partial(self.update_message, err=err))
+            return
+        if not mode:
+            err = 'Unknown Mode'
+            Clock.schedule_once(partial(self.update_message, err=err))
+            return
         agent = GUINetDropClient(self, ip, mode)
         threading.Thread(
             name='Ndrop client',
@@ -408,6 +430,9 @@ class RootWidget(MDBoxLayout):
         self.ids.scroll_layout.remove_widget(client)
         Logger.info(f'Ndrop: remove {client}')
 
+    def on_recv_text(self, text):
+        Clock.schedule_once(partial(self.recv_text, text=text))
+
     def recv_text(self, dt, text):
         self.messagebox.append_text(text)
         if not self.popup_messagebox:
@@ -470,7 +495,13 @@ class RootWidget(MDBoxLayout):
                 })
             message = f'{ip}: {text}'
             Logger.debug(f'Ndrop: TEXT: {message}')
-            Clock.schedule_once(partial(self.recv_text, text=message))
+            self.on_recv_text(message)
+            return True
+        elif args['action'] == 'recv_file':
+            # file = args['file']
+            ip, port = args['from_addr']
+            err = f'recv file from {ip}'
+            self.root.ids.you.on_recv_file(err=err)
             return True
 
     def android_open_folder(self, target_dir):
@@ -812,6 +843,13 @@ class GuiApp(MDApp):
         self.root.dispatch('on_ndrop_event', {
             'action': 'remove_node',
             'node': node
+        })
+
+    def on_recv_file(self, file, from_addr):
+        self.root.dispatch('on_ndrop_event', {
+            'action': 'recv_file',
+            'file': file,
+            'from_addr': from_addr
         })
 
     def on_recv_text(self, text, from_addr):
