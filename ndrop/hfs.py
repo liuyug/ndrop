@@ -13,6 +13,16 @@ logger = logging.getLogger(__name__)
 
 
 class Handler(SimpleHTTPRequestHandler):
+    def handle_one_request(self):
+        try:
+            super().handle_one_request()
+        except Exception as err:
+            logger.warn('%s - - [%s] %s' % (
+                self.client_address[0],
+                self.log_date_time_string(),
+                err,
+            ))
+
     def log_message(self, format, *args):
         message = "%s - - [%s] %s" % (
             self.client_address[0],
