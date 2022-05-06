@@ -314,6 +314,8 @@ class ClientWidget(ButtonBehavior, MDBoxLayout):
         self.progress = self.ids.progress
 
     def on_recv_file(self, err):
+        """开始接收文件
+        """
         Clock.schedule_once(partial(self.update_message, err=err))
 
     def do_send_files(self, files, ip=None, mode=None):
@@ -501,7 +503,7 @@ class RootWidget(MDBoxLayout):
             # file = args['file']
             ip, port = args['from_addr']
             err = f'recv file from {ip}'
-            self.root.ids.you.on_recv_file(err=err)
+            self.ids.you.on_recv_file(err=err)
             return True
 
     def android_open_folder(self, target_dir):
@@ -846,6 +848,8 @@ class GuiApp(MDApp):
         })
 
     def on_recv_file(self, file, from_addr):
+        """通知Widget开始接收文件
+        """
         self.root.dispatch('on_ndrop_event', {
             'action': 'recv_file',
             'file': file,
