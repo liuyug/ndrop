@@ -698,6 +698,9 @@ class HFSWidget(MDBoxLayout):
         hfs_logger = logging.getLogger('%s.hfs' % __name__.rpartition('.')[0])
         hfs_logger.addHandler(self.queue_handler)
 
+        self.create_hfs()
+
+    def create_hfs(self):
         Logger.info('HFS: -- HFS server start --')
         listen = '0.0.0.0'
         cert = None
@@ -728,9 +731,10 @@ class HFSWidget(MDBoxLayout):
             Clock.schedule_once(self.on_clock_check)
 
     def on_ok(self):
-        self.hfs_server.shutdown()
-        self.hfs_server = None
-        Logger.info('HFS: -- HFS server close --')
+        # 关闭窗口，没有摧毁窗口，后台 HFS 服务仍然运行
+        # self.hfs_server.shutdown()
+        # self.hfs_server = None
+        # Logger.info('HFS: -- HFS server close --')
         self.dismiss()
 
 
@@ -937,8 +941,9 @@ class GuiApp(MDApp):
 
 def run():
     Logger.info(f'Ndrop: {about.banner}')
-    # app_logger = logging.getLogger(__name__.rpartition('.')[0])
-    # app_logger.setLevel(logging.INFO)
+    # 打开 Python logging，显示 HFS 信息
+    app_logger = logging.getLogger(__name__.rpartition('.')[0])
+    app_logger.setLevel(logging.INFO)
 
     # FORMAT = ' * %(message)s'
     # handler = logging.StreamHandler(sys.stdout)
