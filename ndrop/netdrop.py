@@ -86,7 +86,7 @@ class NetDropServer(NetDrop):
             return
         self._drop_directory = os.path.abspath(path)
 
-    def on_recv_file(self, path):
+    def on_recv_file(self, path, from_addr):
         pass
 
     def recv_feed_file(self,
